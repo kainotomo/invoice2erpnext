@@ -19,7 +19,7 @@ MIT
 This will install the poppler-utils package which includes pdftotext
 
 * Install invoice2data using pip
-`pip install invoice2data`
+`bench pip install invoice2data`
 
 #### Installation of input modules
 An tesseract wrapper is included in auto language mode. It will test your input files against the languages installed on your system. To use it tesseract and imagemagick needs to be installed. tesseract supports multiple OCR engine modes. By default the available engine installed on the system will be used.
