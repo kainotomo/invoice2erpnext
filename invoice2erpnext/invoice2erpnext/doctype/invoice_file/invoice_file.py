@@ -4,6 +4,7 @@
 import frappe
 import os
 import json
+from json2table import convert
 import datetime
 from invoice2data import extract_data
 from invoice2data.extract.loader import read_templates
@@ -20,3 +21,8 @@ class InvoiceFile(Document):
 			result = extract_data(file_path, templates=templates)
 			if result:
 				self.result = json.dumps(result, indent=4, default=lambda x: x.isoformat() if isinstance(x, datetime.datetime) else None)
+				self.html_table = convert(result)
+				frappe.db.set_value('Invoice File', self.name, {
+					'result': self.result,
+					'html_table': self.html_table
+				})

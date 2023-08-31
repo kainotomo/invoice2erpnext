@@ -2,7 +2,7 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('Invoice File', {
-	// refresh: function(frm) {
-
-	// }
+	refresh: function(frm) {
+		frm.set_df_property("html_render", "options", frm.doc.html_table);
+	}
 });
