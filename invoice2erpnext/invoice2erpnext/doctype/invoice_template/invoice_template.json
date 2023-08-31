@@ -7,18 +7,18 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "yaml"
+  "yml"
  ],
  "fields": [
   {
-   "fieldname": "yaml",
+   "fieldname": "yml",
    "fieldtype": "Long Text",
-   "label": "Yaml"
+   "label": "Yml"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-08-31 08:46:35.315132",
+ "modified": "2023-08-31 09:57:40.769422",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice Template",

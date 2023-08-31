@@ -7,12 +7,12 @@ import os
 
 
 class InvoiceTemplate(Document):
-    # define a function to write yaml text to a file
-    def write_yaml_to_file(doc):
-        # get the yaml field value
-        yaml_text = doc.yaml
+    # define a function to write yml text to a file
+    def write_yml_to_file(doc):
+        # get the yml field value
+        yml_text = doc.yml
         # create a file name with the document name
-        file_name = doc.name + ".yaml"
+        file_name = doc.name + ".yml"
         # create a folder path under the site
         folder_path = os.path.join(frappe.local.site_path, "invoice_template")
         # create the folder if it does not exist
@@ -22,13 +22,13 @@ class InvoiceTemplate(Document):
         file_path = os.path.join(folder_path, file_name)
         # open the file in write mode
         with open(file_path, "w") as f:
-            # write the yaml text to the file
-            f.write(yaml_text)
+            # write the yml text to the file
+            f.write(yml_text)
 
-    # define a function to delete yaml file
-    def delete_yaml_file(doc):
+    # define a function to delete yml file
+    def delete_yml_file(doc):
         # create a file name with the document name
-        file_name = doc.name + ".yaml"
+        file_name = doc.name + ".yml"
         # create a folder path under the site
         folder_path = os.path.join(frappe.local.site_path, "invoice_template")
         # create a file path with the folder and file name
@@ -37,12 +37,12 @@ class InvoiceTemplate(Document):
         if os.path.exists(file_path):
             os.remove(file_path)
 
-    # define a function to rename yaml file
-    def rename_yaml_file(doc, old_name):
+    # define a function to rename yml file
+    def rename_yml_file(doc, old_name):
         # create an old file name with the old document name
-        old_file_name = old_name + ".yaml"
+        old_file_name = old_name + ".yml"
         # create a new file name with the new document name
-        new_file_name = doc.name + ".yaml"
+        new_file_name = doc.name + ".yml"
         # create a folder path under the site
         folder_path = os.path.join(frappe.local.site_path, "invoice_template")
         # create an old file path with the folder and old file name
@@ -55,12 +55,12 @@ class InvoiceTemplate(Document):
 
     # override the on_update method of the Document class
     def on_update(self):
-        self.write_yaml_to_file()
+        self.write_yml_to_file()
 
     # override the on_trash method of the Document class
     def on_trash(self):
-        self.delete_yaml_file()
+        self.delete_yml_file()
 
     # override the after_rename method of the Document class
     def after_rename(self, old_name, new_name, merge=False):
-        self.rename_yaml_file(old_name)
+        self.rename_yml_file(old_name)
