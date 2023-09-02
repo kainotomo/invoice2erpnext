@@ -11,7 +11,6 @@ MIT
 
 ### Installation
 
-
 * Update apt with command: `sudo apt update`
 
 * install pdftotext on Ubuntu, you can use the following command in the terminal:
@@ -29,12 +28,17 @@ An tesseract wrapper is included in auto language mode. It will test your input 
 
 Languages: tesseract-ocr recognize more than 100 languages For Linux users, you can often find packages that provide language packs:
 
-# Display a list of all Tesseract language packs
-`sudo apt-cache search tesseract-ocr
+**Display a list of all Tesseract language packs**
+`sudo apt-cache search tesseract-ocr`
 
-# Debian/Ubuntu users
-sudo apt-get install tesseract-ocr-ell  # Example: Install Greek language pack
+**Debian/Ubuntu users**
+`sudo apt-get install tesseract-ocr-ell`  # Example: Install Greek language pack
 
-# Arch Linux users
-pacman -S tesseract-data-eng tesseract-data-deu # Example: Install the English and German language packs
-`
+**Arch Linux users**
+`pacman -S tesseract-data-eng tesseract-data-deu` # Example: Install the English and German language packs
+
+### How to use
+
+### Template system
+
+
