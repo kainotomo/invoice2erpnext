@@ -79,6 +79,8 @@ def make_purchase_invoice(source_name):
 	)
 	
 	pi.save();
-	return
+	frappe.db.set_value('Invoice File', source_name, {'status': 'Purchase Invoice created'})
+
+	return pi.name
 
 
