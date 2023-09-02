@@ -62,7 +62,7 @@ def make_purchase_invoice(source_name):
 			"received_qty":result.get('received_qty', 0),
 			"rejected_qty": result.get('rejected_qty', 0),
 			"rate": result.get('amount', 0),
-			"price_list_rate": result.get('price_list_rate', 50),
+			"price_list_rate": result.get('price_list_rate', None),
 			"expense_account": result.get('expense_account', None),
 			"discount_account": result.get('discount_account', None),
 			"discount_amount": result.get('discount_amount', 0),
