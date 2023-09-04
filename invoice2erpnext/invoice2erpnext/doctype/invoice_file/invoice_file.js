@@ -22,7 +22,6 @@ frappe.ui.form.on('Invoice File', {
 								frappe.msgprint("Something went wrong.", 'Error');
 							} else {
 								frappe.set_route("Form", "Purchase Invoice", response.message)
-								//frappe.msgprint("Succesfully created document.");
 							}
 						}
 					});

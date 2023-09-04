@@ -81,4 +81,8 @@ Note that if erpnext have default values, then None will default to that value.
 * rejected_serial_no - Defaults to None
 * asset_location - Defaults to None
 * allow_zero_valuation_rate - Defaults to 0
-
+**Tax**
+* tax_account_head - Tax account (required)
+* tax_cost_center - Defaults to None
+* tax_description - Defaults to "TAX"
+* tax_amount - Defaults to 0

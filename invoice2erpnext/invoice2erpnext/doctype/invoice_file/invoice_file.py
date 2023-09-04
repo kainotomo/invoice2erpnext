@@ -77,6 +77,19 @@ def make_purchase_invoice(source_name):
 			"allow_zero_valuation_rate": result.get('allow_zero_valuation_rate', 0),
 		},
 	)
+
+	pi.append("taxes", {
+		"account_head": result['tax_account_head'],
+		"add_deduct_tax": "Add",
+		"category": "Total",
+		"charge_type": "Actual",
+		"cost_center": result.get('tax_cost_center', None),
+		"description": result.get('tax_description', "TAX"),
+		"doctype": "Purchase Taxes and Charges",
+		"parentfield": "taxes",
+		"rate": 0,
+		"tax_amount": result.get('tax_amount', 0)
+	})
 	
 	pi.save();
 	frappe.db.set_value('Invoice File', source_name, {'status': 'Purchase Invoice created'})
