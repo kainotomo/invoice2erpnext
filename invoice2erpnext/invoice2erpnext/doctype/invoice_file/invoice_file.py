@@ -10,6 +10,7 @@ from invoice2data import extract_data
 from invoice2data.extract.loader import read_templates
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
+from datetime import datetime, timedelta
 
 class InvoiceFile(Document):
 
@@ -34,11 +35,11 @@ class InvoiceFile(Document):
 				})
 			
 @frappe.whitelist()
-def make_purchase_invoice(source_name):
+def make_purchase_invoice(source_name, doc_type):
 	invoice_file_doc = frappe.get_doc("Invoice File", source_name)
 	result = json.loads(invoice_file_doc.result)
 
-	pi = frappe.new_doc("Purchase Invoice")
+	pi = frappe.new_doc(doc_type)
 	pi.supplier = result["issuer"]
 	pi.currency = result.get('currency', None)
 	pi.conversion_rate = result.get('conversion_rate', 1)
@@ -75,6 +76,7 @@ def make_purchase_invoice(source_name):
 			"rejected_serial_no": result.get('rejected_serial_no', None),
 			"asset_location": result.get('asset_location', None),
 			"allow_zero_valuation_rate": result.get('allow_zero_valuation_rate', 0),
+			"schedule_date": datetime.now() + timedelta(hours=1)
 		},
 	)
 
