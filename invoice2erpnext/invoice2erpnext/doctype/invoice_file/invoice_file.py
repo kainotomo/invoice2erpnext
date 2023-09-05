@@ -5,12 +5,11 @@ import frappe
 import os
 import json
 from json2table import convert
-import datetime
 from invoice2data import extract_data
 from invoice2data.extract.loader import read_templates
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
-from datetime import datetime, timedelta
+import datetime
 
 class InvoiceFile(Document):
 
@@ -49,8 +48,11 @@ def make_purchase_invoice(source_name, doc_type):
 	pi.supplier_warehouse = result.get('supplier_warehouse', None)
 	pi.cost_center = result.get('cost_center', None)
 	
+	pi.set_posting_time = 1
 	pi.posting_date = result.get('date', frappe.utils.today())
-	pi.due_date = result.get('date', None)
+	pi.transaction_date = pi.posting_date
+	pi.schedule_date = pi.posting_date
+	pi.due_date = pi.posting_date
 	pi.bill_no = result.get('invoice_number', None)
 	pi.bill_date = result.get('bill_date', pi.posting_date)
 
@@ -76,22 +78,23 @@ def make_purchase_invoice(source_name, doc_type):
 			"rejected_serial_no": result.get('rejected_serial_no', None),
 			"asset_location": result.get('asset_location', None),
 			"allow_zero_valuation_rate": result.get('allow_zero_valuation_rate', 0),
-			"schedule_date": datetime.now() + timedelta(hours=1)
+			"schedule_date": pi.posting_date
 		},
 	)
 
-	pi.append("taxes", {
-		"account_head": result['tax_account_head'],
-		"add_deduct_tax": "Add",
-		"category": "Total",
-		"charge_type": "Actual",
-		"cost_center": result.get('tax_cost_center', None),
-		"description": result.get('tax_description', "TAX"),
-		"doctype": "Purchase Taxes and Charges",
-		"parentfield": "taxes",
-		"rate": 0,
-		"tax_amount": result.get('tax_amount', 0)
-	})
+	if result.get('tax_account_head'):
+		pi.append("taxes", {
+			"account_head": result['tax_account_head'],
+			"add_deduct_tax": "Add",
+			"category": "Total",
+			"charge_type": "Actual",
+			"cost_center": result.get('tax_cost_center', None),
+			"description": result.get('tax_description', "TAX"),
+			"doctype": "Purchase Taxes and Charges",
+			"parentfield": "taxes",
+			"rate": 0,
+			"tax_amount": result.get('tax_amount', 0)
+		})
 	
 	pi.save();
 	frappe.db.set_value('Invoice File', source_name, {'status': 'Purchase Invoice created'})
