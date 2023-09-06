@@ -2,7 +2,34 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('Invoice Template', {
-	// refresh: function(frm) {
+	refresh: function(frm) {
+		frm.fields_dict['tax_account_head'].get_query = function(doc, cdt, cdn) {
+            return {
+                filters: [
+                    ['Account', 'account_type', '=', 'Tax']
+                ]
+            };
+        };
 
-	// }
+		frm.add_custom_button(__('Generate YML'), function () {
+			frappe.confirm('Are you sure you want to proceed?', function () {
+				frappe.call({
+					method: "invoice2erpnext.invoice2erpnext.doctype.invoice_template.invoice_template.generate_yml",
+					args: {
+						doc: frm.doc,
+					},
+					callback: function (response) {
+						if (response.message.errors) {
+							frappe.msgprint("Something went wrong.", 'Error');
+						} else {
+							frm.set_value('yml', response.message);
+							frm.refresh_field('yml');
+						}
+					}
+				});
+			}, function () {
+				// action to perform if No is selected
+			});
+		});
+	}
 });
