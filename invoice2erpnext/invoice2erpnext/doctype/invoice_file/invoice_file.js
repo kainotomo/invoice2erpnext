@@ -12,44 +12,36 @@ frappe.ui.form.on('Invoice File', {
 			frm.set_df_property("html_render", "options", frm.doc.html_table);
 
 			frm.add_custom_button(__('Purchase Order'), function () {
-				frappe.confirm('Are you sure you want to proceed?', function () {
-					frappe.call({
-						method: "invoice2erpnext.invoice2erpnext.doctype.invoice_file.invoice_file.make_purchase_invoice",
-						args: {
-							source_name: frm.doc.name,
-							doc_type: "Purchase Order"
-						},
-						callback: function (response) {
-							if (response.message.errors) {
-								frappe.msgprint("Something went wrong.", 'Error');
-							} else {
-								frappe.set_route("Form", "Purchase Order", response.message)
-							}
+				frappe.call({
+					method: "invoice2erpnext.invoice2erpnext.doctype.invoice_file.invoice_file.make_purchase_invoice",
+					args: {
+						source_name: frm.doc.name,
+						doc_type: "Purchase Order"
+					},
+					callback: function (response) {
+						if (response.message.errors) {
+							frappe.msgprint("Something went wrong.", 'Error');
+						} else {
+							frappe.set_route("Form", "Purchase Order", response.message)
 						}
-					});
-				}, function () {
-					// action to perform if No is selected
+					}
 				});
 			}, __('Create'));
 
 			frm.add_custom_button(__('Purchase Invoice'), function () {
-				frappe.confirm('Are you sure you want to proceed?', function () {
-					frappe.call({
-						method: "invoice2erpnext.invoice2erpnext.doctype.invoice_file.invoice_file.make_purchase_invoice",
-						args: {
-							source_name: frm.doc.name,
-							doc_type: "Purchase Invoice"
-						},
-						callback: function (response) {
-							if (response.message.errors) {
-								frappe.msgprint("Something went wrong.", 'Error');
-							} else {
-								frappe.set_route("Form", "Purchase Invoice", response.message)
-							}
+				frappe.call({
+					method: "invoice2erpnext.invoice2erpnext.doctype.invoice_file.invoice_file.make_purchase_invoice",
+					args: {
+						source_name: frm.doc.name,
+						doc_type: "Purchase Invoice"
+					},
+					callback: function (response) {
+						if (response.message.errors) {
+							frappe.msgprint("Something went wrong.", 'Error');
+						} else {
+							frappe.set_route("Form", "Purchase Invoice", response.message)
 						}
-					});
-				}, function () {
-					// action to perform if No is selected
+					}
 				});
 			}, __('Create'));
 		} else {
