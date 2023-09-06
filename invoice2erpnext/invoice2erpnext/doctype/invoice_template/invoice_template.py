@@ -22,17 +22,8 @@ class InvoiceTemplate(Document):
         # create a file path with the folder and file name
         file_path = os.path.join(folder_path, file_name)
 
-        # Create a new dictionary to store the extracted fields
-        extracted_data = {}
-
-        # get issuer
-        extracted_data['issuer'] = doc.get("issuer")
-        
-        # Get fields
-        invoice_template_fields = doc.get("invoice_template_field")
-
         with open(file_path, 'w') as f:
-            yaml.dump(extracted_data, f)
+            f.write(yml_text)
 
     # define a function to delete yml file
     def delete_yml_file(doc):
@@ -84,16 +75,22 @@ def generate_yml(doc):
     fields['amount'] = invoice_template['amount']
     fields['date'] = invoice_template['date']
     fields['invoice_number'] = invoice_template['invoice_number']
-    fields['item_code'] = invoice_template['item_code']
+    fields['item_code'] = {
+        'parser': 'static',
+        'value': invoice_template['item_code']
+        }
     if invoice_template['tax_account_head']:
-        fields['tax_account_head'] = invoice_template['tax_account_head']
+        fields['tax_account_head'] = {
+            'parser': 'static',
+            'value': invoice_template['tax_account_head']
+        }
         fields['tax_amount'] = invoice_template['tax_amount']
     result['fields'] = fields
 
     options = {}
     options['currency'] = invoice_template['currency']
     options['remove_whitespace'] = invoice_template['remove_whitespace']
-    options['date_formats'] = invoice_template['date_formats']
+    options['date_formats'] = [invoice_template['date_formats']]
     options['decimal_separator'] = invoice_template['decimal_separator']
     result['options'] = options
 
