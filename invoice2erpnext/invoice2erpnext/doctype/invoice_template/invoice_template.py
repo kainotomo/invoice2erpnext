@@ -79,7 +79,7 @@ def generate_yml(doc):
         'parser': 'static',
         'value': invoice_template['item_code']
         }
-    if invoice_template['tax_account_head']:
+    if 'tax_account_head' in invoice_template:
         fields['tax_account_head'] = {
             'parser': 'static',
             'value': invoice_template['tax_account_head']

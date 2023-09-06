@@ -8,17 +8,21 @@
  "engine": "InnoDB",
  "field_order": [
   "yml",
+  "section_break_tsw1w",
+  "heading_1",
   "issuer",
   "amount",
   "date",
   "invoice_number",
   "item_code",
+  "column_break_qnzjk",
   "tax_account_head",
   "tax_amount",
   "currency",
   "remove_whitespace",
   "date_formats",
   "decimal_separator",
+  "section_break_1eb8u",
   "keywords"
  ],
  "fields": [
@@ -107,11 +111,28 @@
    "label": "Keywords",
    "options": "Invoice Template Keyword",
    "reqd": 1
+  },
+  {
+   "fieldname": "column_break_qnzjk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_tsw1w",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "heading_1",
+   "fieldtype": "Heading",
+   "label": "Main Fields"
+  },
+  {
+   "fieldname": "section_break_1eb8u",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-09-06 10:03:08.670544",
+ "modified": "2023-09-06 10:51:41.352781",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice Template",
