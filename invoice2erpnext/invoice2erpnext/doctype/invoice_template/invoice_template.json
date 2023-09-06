@@ -7,18 +7,106 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "yml"
+  "yml",
+  "issuer",
+  "amount",
+  "date",
+  "invoice_number",
+  "item_code",
+  "tax_account_head",
+  "tax_amount",
+  "currency",
+  "remove_whitespace",
+  "date_formats",
+  "decimal_separator"
  ],
  "fields": [
   {
    "fieldname": "yml",
    "fieldtype": "Long Text",
-   "label": "Yml"
+   "in_list_view": 1,
+   "label": "Yml",
+   "reqd": 1
+  },
+  {
+   "fieldname": "issuer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Issuer",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "invoice_number",
+   "fieldtype": "Data",
+   "label": "Invoice Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item Code",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tax_account_head",
+   "fieldtype": "Link",
+   "label": "Tax Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Data",
+   "label": "Tax Amount"
+  },
+  {
+   "default": "EUR",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "remove_whitespace",
+   "fieldtype": "Check",
+   "label": "Remove Whitespace"
+  },
+  {
+   "default": "%d/%m/%Y",
+   "fieldname": "date_formats",
+   "fieldtype": "Data",
+   "label": "Date Format",
+   "reqd": 1
+  },
+  {
+   "default": ",",
+   "fieldname": "decimal_separator",
+   "fieldtype": "Select",
+   "label": "Decimal Separator",
+   "options": ",\n.",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-08-31 09:57:40.769422",
+ "modified": "2023-09-06 09:57:43.648904",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice Template",

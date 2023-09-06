@@ -4,7 +4,8 @@
 import frappe
 from frappe.model.document import Document
 import os
-
+import yaml
+import json
 
 class InvoiceTemplate(Document):
     # define a function to write yml text to a file
@@ -20,10 +21,18 @@ class InvoiceTemplate(Document):
             os.mkdir(folder_path)
         # create a file path with the folder and file name
         file_path = os.path.join(folder_path, file_name)
-        # open the file in write mode
-        with open(file_path, "w") as f:
-            # write the yml text to the file
-            f.write(yml_text)
+
+        # Create a new dictionary to store the extracted fields
+        extracted_data = {}
+
+        # get issuer
+        extracted_data['issuer'] = doc.get("issuer")
+        
+        # Get fields
+        invoice_template_fields = doc.get("invoice_template_field")
+
+        with open(file_path, 'w') as f:
+            yaml.dump(extracted_data, f)
 
     # define a function to delete yml file
     def delete_yml_file(doc):
@@ -64,3 +73,28 @@ class InvoiceTemplate(Document):
     # override the after_rename method of the Document class
     def after_rename(self, old_name, new_name, merge=False):
         self.rename_yml_file(old_name)
+
+@frappe.whitelist()
+def generate_yml(doc):
+    invoice_template = json.loads(doc)
+    result = {}
+    result['issuer'] = invoice_template['issuer']
+    
+    fields = {}
+    fields['amount'] = invoice_template['amount']
+    fields['date'] = invoice_template['date']
+    fields['invoice_number'] = invoice_template['invoice_number']
+    fields['item_code'] = invoice_template['item_code']
+    if invoice_template['tax_account_head']:
+        fields['tax_account_head'] = invoice_template['tax_account_head']
+        fields['tax_amount'] = invoice_template['tax_amount']
+    result['fields'] = fields
+
+    options = {}
+    options['currency'] = invoice_template['currency']
+    options['remove_whitespace'] = invoice_template['remove_whitespace']
+    options['date_formats'] = invoice_template['date_formats']
+    options['decimal_separator'] = invoice_template['decimal_separator']
+    result['options'] = options
+
+    return yaml.dump(result)
