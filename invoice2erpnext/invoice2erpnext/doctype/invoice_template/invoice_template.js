@@ -11,6 +11,14 @@ frappe.ui.form.on('Invoice Template', {
             };
         };
 
+		frm.fields_dict['expense_account'].get_query = function(doc, cdt, cdn) {
+            return {
+                filters: [
+                    ['Account', 'root_type', '=', 'Expense']
+                ]
+            };
+        };
+
 		frm.add_custom_button(__('Generate YML'), function () {
 			frappe.confirm('Are you sure you want to proceed?', function () {
 				frappe.call({

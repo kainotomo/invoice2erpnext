@@ -85,6 +85,11 @@ def generate_yml(doc):
             'value': invoice_template['tax_account_head']
         }
         fields['tax_amount'] = invoice_template['tax_amount']
+    if 'expense_account' in invoice_template:
+        fields['expense_account'] = {
+            'parser': 'static',
+            'value': invoice_template['expense_account']
+        }
     result['fields'] = fields
 
     options = {}
