@@ -20,23 +20,19 @@ frappe.ui.form.on('Invoice Template', {
         };
 
 		frm.add_custom_button(__('Generate YML'), function () {
-			frappe.confirm('Are you sure you want to proceed?', function () {
-				frappe.call({
-					method: "invoice2erpnext.invoice2erpnext.doctype.invoice_template.invoice_template.generate_yml",
-					args: {
-						doc: frm.doc,
-					},
-					callback: function (response) {
-						if (response.message.errors) {
-							frappe.msgprint("Something went wrong.", 'Error');
-						} else {
-							frm.set_value('yml', response.message);
-							frm.refresh_field('yml');
-						}
+			frappe.call({
+				method: "invoice2erpnext.invoice2erpnext.doctype.invoice_template.invoice_template.generate_yml",
+				args: {
+					doc: frm.doc,
+				},
+				callback: function (response) {
+					if (response.message.errors) {
+						frappe.msgprint("Something went wrong.", 'Error');
+					} else {
+						frm.set_value('yml', response.message);
+						frm.refresh_field('yml');
 					}
-				});
-			}, function () {
-				// action to perform if No is selected
+				}
 			});
 		});
 	}
