@@ -18,13 +18,13 @@
   "currency",
   "remove_whitespace",
   "date_formats",
-  "decimal_separator"
+  "decimal_separator",
+  "keywords"
  ],
  "fields": [
   {
    "fieldname": "yml",
    "fieldtype": "Long Text",
-   "in_list_view": 1,
    "label": "Yml",
    "reqd": 1
   },
@@ -32,6 +32,7 @@
    "fieldname": "issuer",
    "fieldtype": "Link",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Issuer",
    "options": "Supplier",
    "reqd": 1
@@ -39,22 +40,19 @@
   {
    "fieldname": "amount",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Amount",
    "reqd": 1
   },
   {
    "fieldname": "date",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Date",
    "reqd": 1
   },
   {
    "fieldname": "invoice_number",
    "fieldtype": "Data",
-   "label": "Invoice Number",
-   "reqd": 1
+   "label": "Invoice Number"
   },
   {
    "fieldname": "item_code",
@@ -102,11 +100,18 @@
    "label": "Decimal Separator",
    "options": ",\n.",
    "reqd": 1
+  },
+  {
+   "fieldname": "keywords",
+   "fieldtype": "Table",
+   "label": "Keywords",
+   "options": "Invoice Template Keyword",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-09-06 09:57:43.648904",
+ "modified": "2023-09-06 10:03:08.670544",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice Template",

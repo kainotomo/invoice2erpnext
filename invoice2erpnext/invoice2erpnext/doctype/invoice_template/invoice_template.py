@@ -97,4 +97,9 @@ def generate_yml(doc):
     options['decimal_separator'] = invoice_template['decimal_separator']
     result['options'] = options
 
+    keywords = []
+    for keyword in invoice_template['keywords']:
+        keywords.append(keyword['keyword'])
+    result['keywords'] = keywords
+
     return yaml.dump(result)
