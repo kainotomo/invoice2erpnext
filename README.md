@@ -1,12 +1,11 @@
-## Invoice2Erpnext
-Data extractor for PDF invoices
+# Invoice2Erpnext
+Extract data from invoices and import them into your ERPNext site. This app can parse PDF and create purchase orders and invoices in ErpNext.
 
-This applicate is using on https://github.com/invoice-x/invoice2data to extract the data from PDF files.
-Then it uses the data to import invoices to ErpNext
-
-#### License
+It uses https://github.com/invoice-x/invoice2data where you can find more details and examples.
+### License
 MIT
-### Installation
+## Installation
+### Install "Invoice2Data" Library
 * Update apt with command: `sudo apt update`
 
 * install pdftotext on Ubuntu, you can use the following command in the terminal:
@@ -33,25 +32,44 @@ Languages: tesseract-ocr recognize more than 100 languages For Linux users, you 
 **Arch Linux users**
 `pacman -S tesseract-data-eng tesseract-data-deu` # Example: Install the English and German language packs
 
-### How to use
+For more details check https://github.com/invoice-x/invoice2data#installation
+
+### Install "Invoice2Erpnext" app
+* `bench get-app --branch=master invoice2erpnext https://github.com/phalouvas/invoice2erpnext.git`
+* `bench --site yoursite migrate`
+
+## How to use
 After installing access the app to the created workspace called Invoice2Erpnext. There are two doctypes.
 * **Invoice Template** - add/modify templates
 * **Invoice File** - upload and create Purchase Invoices
 
-Each purchase invoice is created with one item.
+Each purchase invoice is created with one item. See below images for a real example. The example is using this [Sample Invoice](documentation/sample_invoice.pdf).
 
-### Template system
+![Alt text](documentation/img_1.jpeg?raw=true "Workspace")
+![Alt text](documentation/img_2.jpeg?raw=true "Invoice Template List")
+
+In the template form are prepared the necessary fileds where to write the regex expresions and generate the yml. You can modify the yml file to include more data as desired. We can prepare the template files for your invoice. Contact us at info@kainotomo.com to get a quote.
+
+![Alt text](documentation/img_3.jpeg?raw=true "Invoice Template Form")
+![Alt text](documentation/img_4.jpeg?raw=true "Invoice File List")
+![Alt text](documentation/img_5.jpeg?raw=true "Invoice File Form")
+![Alt text](documentation/img_6.jpeg?raw=true "Purchase Order")
+![Alt text](documentation/img_7.jpeg?raw=true "Purchase Invoice")
+
+## Template system
 Read Invoice2Data template system documentation on how to use it. https://github.com/invoice-x/invoice2data#template-system 
 
-In addition the integration with erpnext is as below.
+We can also prepare the template for you. Contact us at info@kainotomo.com to get a quote.
 
-#### Required fields
+The supported fields are the following.
+
+### Required fields
 * issuer - the supplier. Must already exist in the system
 * date - the posting date invoice was issued
 * invoice_number - unique number assigned to invoice by an issuer
 * item_code - The item code in erpnext
 * amount - The item rate
-#### Additional fields
+### Additional fields
 Note that if erpnext have default values, then None will default to that value.
 **General fields of the invoice**
 * currency - Defaults to None
