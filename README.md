@@ -43,7 +43,18 @@ After installing access the app to the created workspace called Invoice2Erpnext.
 * **Invoice Template** - add/modify templates
 * **Invoice File** - upload and create Purchase Invoices
 
-Each purchase invoice is created with one item.
+Each purchase invoice is created with one item. See below images for a real example. The example is using this [Sample Invoice](documentation/sample_invoice.pdf).
+
+![Alt text](documentation/img_1.jpeg?raw=true "Workspace")
+![Alt text](documentation/img_2.jpeg?raw=true "Invoice Template List")
+
+In the template form are prepared the necessary fileds where to write the regex expresions and generate the yml. You can modify the yml file to include more data as desired.
+
+![Alt text](documentation/img_3.jpeg?raw=true "Invoice Template Form")
+![Alt text](documentation/img_4.jpeg?raw=true "Invoice File List")
+![Alt text](documentation/img_5.jpeg?raw=true "Invoice File Form")
+![Alt text](documentation/img_6.jpeg?raw=true "Purchase Order")
+![Alt text](documentation/img_7.jpeg?raw=true "Purchase Invoice")
 
 ## Template system
 Read Invoice2Data template system documentation on how to use it. https://github.com/invoice-x/invoice2data#template-system 
