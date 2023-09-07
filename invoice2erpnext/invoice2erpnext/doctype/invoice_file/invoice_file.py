@@ -33,6 +33,11 @@ class InvoiceFile(Document):
 					'html_table': None
 				})
 			
+def comma_to_dot(number_str):
+	if isinstance(number_str, str):
+		number_str = float(number_str.replace(",", "."))
+	return number_str
+
 @frappe.whitelist()
 def make_purchase_invoice(source_name, doc_type):
 	invoice_file_doc = frappe.get_doc("Invoice File", source_name)
@@ -41,7 +46,7 @@ def make_purchase_invoice(source_name, doc_type):
 	pi = frappe.new_doc(doc_type)
 	pi.supplier = result["issuer"]
 	pi.currency = result.get('currency', None)
-	pi.conversion_rate = result.get('conversion_rate', 1)
+	pi.conversion_rate = comma_to_dot(result.get('conversion_rate', 1))
 	pi.is_return = result.get('is_return', None)
 	pi.return_against = result.get('return_against', None)
 	pi.is_subcontracted = result.get('is_subcontracted', 0)
@@ -62,13 +67,13 @@ def make_purchase_invoice(source_name, doc_type):
 			"item_code": result['item_code'],
 			"warehouse": result.get('warehouse', None),
 			"qty": result.get('qty', 1),
-			"received_qty":result.get('received_qty', 0),
-			"rejected_qty": result.get('rejected_qty', 0),
-			"rate": result.get('amount', 0),
+			"received_qty":comma_to_dot(result.get('received_qty', 0)),
+			"rejected_qty": comma_to_dot(result.get('rejected_qty', 0)),
+			"rate": comma_to_dot(result.get('amount', 0)),
 			"price_list_rate": result.get('price_list_rate', None),
 			"expense_account": result.get('expense_account', None),
 			"discount_account": result.get('discount_account', None),
-			"discount_amount": result.get('discount_amount', 0),
+			"discount_amount": comma_to_dot(result.get('discount_amount', 0)),
 			"conversion_factor": 1.0,
 			"serial_no": result.get('serial_no', None),
 			"stock_uom": result.get('stock_uom', None),
@@ -77,7 +82,7 @@ def make_purchase_invoice(source_name, doc_type):
 			"rejected_warehouse": result.get('rejected_warehouse', None),
 			"rejected_serial_no": result.get('rejected_serial_no', None),
 			"asset_location": result.get('asset_location', None),
-			"allow_zero_valuation_rate": result.get('allow_zero_valuation_rate', 0),
+			"allow_zero_valuation_rate": comma_to_dot(result.get('allow_zero_valuation_rate', 0)),
 			"schedule_date": pi.posting_date
 		},
 	)
@@ -93,7 +98,7 @@ def make_purchase_invoice(source_name, doc_type):
 			"doctype": "Purchase Taxes and Charges",
 			"parentfield": "taxes",
 			"rate": 0,
-			"tax_amount": result.get('tax_amount', 0)
+			"tax_amount": comma_to_dot(result.get('tax_amount', 0))
 		})
 	
 	pi.save();
