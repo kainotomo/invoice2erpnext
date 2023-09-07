@@ -48,7 +48,7 @@ Each purchase invoice is created with one item. See below images for a real exam
 ![Alt text](documentation/img_1.jpeg?raw=true "Workspace")
 ![Alt text](documentation/img_2.jpeg?raw=true "Invoice Template List")
 
-In the template form are prepared the necessary fileds where to write the regex expresions and generate the yml. You can modify the yml file to include more data as desired.
+In the template form are prepared the necessary fileds where to write the regex expresions and generate the yml. You can modify the yml file to include more data as desired. We can prepare the template files for your invoice. Contact us at info@kainotomo.com to get a quote.
 
 ![Alt text](documentation/img_3.jpeg?raw=true "Invoice Template Form")
 ![Alt text](documentation/img_4.jpeg?raw=true "Invoice File List")
@@ -59,7 +59,9 @@ In the template form are prepared the necessary fileds where to write the regex 
 ## Template system
 Read Invoice2Data template system documentation on how to use it. https://github.com/invoice-x/invoice2data#template-system 
 
-In addition the integration with erpnext is as below.
+We can also prepare the template for you. Contact us at info@kainotomo.com to get a quote.
+
+The supported fields are the following.
 
 ### Required fields
 * issuer - the supplier. Must already exist in the system
