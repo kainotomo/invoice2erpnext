@@ -15,6 +15,7 @@
   "invoice_number",
   "column_break_6keql",
   "item_code",
+  "uom",
   "expense_account",
   "tax_account_head",
   "tax_amount",
@@ -135,11 +136,17 @@
   {
    "fieldname": "column_break_6keql",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Link",
+   "label": "UOM",
+   "options": "UOM"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-09-06 11:24:29.038606",
+ "modified": "2023-09-11 06:13:09.239387",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice Template",

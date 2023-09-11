@@ -65,6 +65,7 @@ def make_purchase_invoice(source_name, doc_type):
 		"items",
 		{
 			"item_code": result['item_code'],
+			"uom": result.get('uom', None),
 			"warehouse": result.get('warehouse', None),
 			"qty": result.get('qty', 1),
 			"received_qty":comma_to_dot(result.get('received_qty', 0)),
