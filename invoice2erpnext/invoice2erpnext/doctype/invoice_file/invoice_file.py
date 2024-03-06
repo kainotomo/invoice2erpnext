@@ -14,24 +14,27 @@ import datetime
 class InvoiceFile(Document):
 
 	def on_update(self):
+		update_invoice_file_result(self)
+			
+def update_invoice_file_result(doc):
+	if doc.file:
 		folder_path = os.path.join(frappe.local.site_path, "invoice_template")
 		templates = read_templates(folder_path)
-		if self.file:
-			file = frappe.get_doc("File", {"file_url": self.file})
-			file_path = file.get_full_path()
-			result = extract_data(file_path, templates=templates)
-			if result:
-				self.result = json.dumps(result, indent=4, default=lambda x: x.isoformat() if isinstance(x, datetime.datetime) else None)
-				self.html_table = convert(result)
-				frappe.db.set_value('Invoice File', self.name, {
-					'result': self.result,
-					'html_table': self.html_table
-				})
-		else:
-			frappe.db.set_value('Invoice File', self.name, {
-					'result': None,
-					'html_table': None
-				})
+		file = frappe.get_doc("File", {"file_url": doc.file})
+		file_path = file.get_full_path()
+		result = extract_data(file_path, templates=templates)
+		if result:
+			doc.result = json.dumps(result, indent=4, default=lambda x: x.isoformat() if isinstance(x, datetime.datetime) else None)
+			doc.html_table = convert(result)
+			frappe.db.set_value('Invoice File', doc.name, {
+				'result': doc.result,
+				'html_table': doc.html_table
+			})
+	else:
+		frappe.db.set_value('Invoice File', doc.name, {
+				'result': None,
+				'html_table': None
+			})
 			
 def comma_to_dot(number_str):
 	if isinstance(number_str, str):
@@ -40,6 +43,9 @@ def comma_to_dot(number_str):
 
 @frappe.whitelist()
 def make_purchase_invoice(source_name, doc_type):
+	email_account = frappe.get_doc("Email Account", "Invoice")
+	email_account.receive()
+	return
 	invoice_file_doc = frappe.get_doc("Invoice File", source_name)
 	result = json.loads(invoice_file_doc.result)
 
@@ -107,4 +113,14 @@ def make_purchase_invoice(source_name, doc_type):
 
 	return pi.name
 
-
+def set_file_from_communication(doc, method):
+	if doc.attached_to_doctype == "Communication":
+		communication = frappe.get_doc("Communication", doc.attached_to_name)
+		if communication.reference_doctype == "Invoice File":
+			invoice_file = frappe.get_doc("Invoice File", communication.reference_name)
+			if invoice_file:
+				invoice_file.file = doc.file_url
+				frappe.db.set_value('Invoice File', invoice_file.name, {
+					'file': doc.file_url,
+				})
+				update_invoice_file_result(invoice_file)
