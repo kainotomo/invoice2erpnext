@@ -5,10 +5,15 @@
  "default_view": "List",
  "doctype": "DocType",
  "editable_grid": 1,
+ "email_append_to": 1,
  "engine": "InnoDB",
  "field_order": [
   "status",
   "file",
+  "column_break_mhrz",
+  "sender_email",
+  "subject",
+  "section_break_srun",
   "result",
   "html_table",
   "html_render"
@@ -47,11 +52,30 @@
    "in_standard_filter": 1,
    "label": "Status",
    "options": "Pending\nPurchase Invoice created"
+  },
+  {
+   "fieldname": "section_break_srun",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_mhrz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Small Text",
+   "label": "Subject"
+  },
+  {
+   "fieldname": "sender_email",
+   "fieldtype": "Data",
+   "label": "Sender Email",
+   "options": "Email"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-09-02 07:20:43.631644",
+ "modified": "2024-03-06 07:09:14.935139",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice File",
@@ -70,7 +94,9 @@
    "write": 1
   }
  ],
+ "sender_field": "sender_email",
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "subject_field": "subject"
 }
