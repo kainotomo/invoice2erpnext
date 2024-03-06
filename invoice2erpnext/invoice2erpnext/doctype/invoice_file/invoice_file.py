@@ -43,9 +43,6 @@ def comma_to_dot(number_str):
 
 @frappe.whitelist()
 def make_purchase_invoice(source_name, doc_type):
-	email_account = frappe.get_doc("Email Account", "Invoice")
-	email_account.receive()
-	return
 	invoice_file_doc = frappe.get_doc("Invoice File", source_name)
 	result = json.loads(invoice_file_doc.result)
 
@@ -124,3 +121,4 @@ def set_file_from_communication(doc, method):
 					'file': doc.file_url,
 				})
 				update_invoice_file_result(invoice_file)
+				make_purchase_invoice_XXX(invoice_file.name, "Purchase Invoice")
