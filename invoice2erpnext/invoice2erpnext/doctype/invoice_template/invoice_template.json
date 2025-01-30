@@ -30,7 +30,7 @@
  "fields": [
   {
    "fieldname": "yml",
-   "fieldtype": "Long Text",
+   "fieldtype": "Code",
    "label": "Yml",
    "reqd": 1
   },
