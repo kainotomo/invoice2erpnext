@@ -32,6 +32,10 @@ class Invoice2ErpnextLog(Document):
             frappe.throw(_("Invalid message structure in message field."))
         if not message["success"]:
             frappe.throw(_("API call was not successful."))
+        if not isinstance(message, dict) or "cost" not in message:
+            frappe.throw(_("Invalid message structure in message field."))
+        cost = message["cost"]
+        frappe.db.set_value("Invoice2Erpnext Log", self.cost, "cost", cost)
         if not isinstance(message, dict) or "extracted_data" not in message:
             frappe.throw(_("Invalid message structure in extracted_data field."))
         extracted_data = json.loads(message["extracted_data"])
@@ -45,6 +49,14 @@ class Invoice2ErpnextLog(Document):
         for doc in erpnext_docs:
             doc_type = doc.get("doctype")
             if doc_type:
+                # Check if Supplier or Item already exists
+                if doc_type == "Supplier" and frappe.db.exists("Supplier", doc.get("supplier_name")):
+                    continue  # Skip creation as supplier already exists
+                elif doc_type == "Item" and frappe.db.exists("Item", doc.get("item_code")):
+                    continue  # Skip creation as item already exists
+                elif doc_type == "Purchase Invoice" and doc.get("bill_no") and frappe.db.exists("Purchase Invoice", {"bill_no": doc.get("bill_no")}):
+                    continue  # Skip creation as purchase invoice with this bill number already exists
+
                 # Create the document in ERPNext
                 new_doc = frappe.new_doc(doc_type)
                 for field, value in doc.items():
@@ -98,8 +110,8 @@ class Invoice2ErpnextLog(Document):
                                                   for keyword in ["total", "credit card", "payment"]):
                 item_doc = {
                     "doctype": "Item",
-                    "item_name": item.get("description"),
-                    "item_code": item.get("item_code") or item.get("description"),
+                    "item_name": item.get("description")[:140],
+                    "item_code": item.get("item_code") or item.get("description")[:140],
                     "item_group": "All Item Groups",  # Default value
                     "stock_uom": "Nos",  # Default value
                     "is_stock_item": 0,
@@ -113,7 +125,7 @@ class Invoice2ErpnextLog(Document):
             "doctype": "Purchase Invoice",
             "title": extracted_data.get("supplier_name", "Unknown"),
             "supplier": extracted_data.get("supplier_name"),
-            "posting_date": extracted_data.get("invoice_date"),
+            "posting_date": extracted_data.get("invoice_date") or extracted_data.get("due_date"),
             "bill_no": extracted_data.get("invoice_number"),
             "due_date": extracted_data.get("due_date"),
             "items": [],
@@ -128,7 +140,7 @@ class Invoice2ErpnextLog(Document):
         for item in actual_items:
             invoice_item = {
                 "item_code": item.get("item_code") or item.get("description"),
-                "item_name": item.get("description"),
+                "item_name": item.get("description")[:140],
                 "description": item.get("description"),
                 "qty": item.get("quantity", 1),
                 "rate": item.get("unit_price", 0),
@@ -139,12 +151,12 @@ class Invoice2ErpnextLog(Document):
         # Add tax information if available
         if extracted_data.get("tax_amount"):
             # Get the VAT account from settings or use a default value
-            vat_account = self.settings.get("vat_account") or "VAT - XXX"
+            vat_account = frappe.db.get_value("Invoice2Erpnext Settings", None, "vat_account") or "VAT - XXX"
             
             tax_row = {
                 "doctype": "Purchase Taxes and Charges",
                 "charge_type": "Actual",
-                "account_head": vat_account,  # Use the account from settings
+                "account_head": vat_account,
                 "description": "Tax",
                 "tax_amount": extracted_data.get("tax_amount", 0),
                 "category": "Total",
@@ -260,6 +272,7 @@ def create_purchase_invoice_from_file(file_doc_name):
             message = response_data.get("message", {})
             if isinstance(message, dict) and message.get("success"):
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Retrieved")
+                frappe.db.commit()
                 doc.create_purchase_invoice()
             else:
                 # Handle error response with proper structure

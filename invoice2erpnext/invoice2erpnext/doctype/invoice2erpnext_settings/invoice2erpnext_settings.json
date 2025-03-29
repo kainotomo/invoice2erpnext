@@ -9,7 +9,9 @@
   "api_key",
   "enabled",
   "column_break_trjd",
-  "api_secret"
+  "api_secret",
+  "section_break_kuys",
+  "vat_account"
  ],
  "fields": [
   {
@@ -37,12 +39,24 @@
    "fieldtype": "Check",
    "label": "Enabled",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_kuys",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "The account used for tax entries in ERPNext (e.g., 'VAT - ABC')",
+   "fieldname": "vat_account",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "VAT Account Head",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-29 09:10:36.770504",
+ "modified": "2025-03-29 19:35:42.674819",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",
