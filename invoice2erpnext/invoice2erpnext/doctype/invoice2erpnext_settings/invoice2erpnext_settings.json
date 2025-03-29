@@ -7,6 +7,7 @@
  "field_order": [
   "credits_section",
   "credits",
+  "enabled",
   "api_credentials_section",
   "api_key",
   "column_break_trjd",
@@ -43,12 +44,19 @@
   {
    "fieldname": "column_break_trjd",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Enabled"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-29 07:50:03.942408",
+ "modified": "2025-03-29 08:05:39.762475",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",

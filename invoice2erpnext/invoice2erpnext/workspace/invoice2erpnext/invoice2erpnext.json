@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"jhv7lDXtTh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Logs\",\"col\":3}},{\"id\":\"1AWrWcS5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
+ "content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"credit_row\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Available Credits\",\"col\":4}},{\"id\":\"jhv7lDXtTh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Logs\",\"col\":3}},{\"id\":\"1AWrWcS5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
  "creation": "2023-09-02 07:58:22.131565",
  "custom_blocks": [],
  "docstatus": 0,
@@ -16,7 +16,13 @@
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Available Credits",
+   "name": "Available Credits",
+   "number_card_name": "Available Credits"
+  }
+ ],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,

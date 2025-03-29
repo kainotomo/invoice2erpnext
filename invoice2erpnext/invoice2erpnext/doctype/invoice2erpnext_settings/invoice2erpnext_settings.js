@@ -3,36 +3,34 @@
 
 frappe.ui.form.on('Invoice2Erpnext Settings', {
     refresh: function(frm) {
+        // Add a button to test the connection
         frm.add_custom_button(__('Test Connection'), function() {
-            frappe.msgprint({
-                title: __('Testing Connection'),
-                indicator: 'blue',
-                message: __('Testing connection to ERPNext API...')
-            });
-            
-            // This will make the API call to test the connection
-            frm.call({
-                method: 'test_erpnext_connection',
-                doc: frm.doc,
-                callback: function(r) {
-                    if (r.message && r.message.success) {
-                        frm.set_value('credits', r.message.credits);
-                        frm.save();
-                        
-                        frappe.msgprint({
-                            title: __('Connection Successful'),
-                            indicator: 'green',
-                            message: __('Connected successfully! Credits: ') + r.message.credits
-                        });
-                    } else {
-                        frappe.msgprint({
-                            title: __('Connection Failed'),
-                            indicator: 'red',
-                            message: r.message.message || __('Could not connect to ERPNext API')
-                        });
+            frm.save().then(() => {
+                frm.call({
+                    doc: frm.doc,
+                    method: 'test_erpnext_connection',
+                    callback: function(r) {
+                        if (r.message && r.message.success) {
+                            frappe.msgprint({
+                                title: __('Success'),
+                                indicator: 'green',
+                                message: __('Connection successful! Credits: {0}', [r.message.credits])
+                            });
+                        } else {
+                            frappe.msgprint({
+                                title: __('Error'),
+                                indicator: 'red',
+                                message: r.message ? r.message.message : __('Connection failed')
+                            });
+                        }
+                        // Reload the form to reflect updated values
+                        frm.reload_doc();
                     }
-                }
+                });
             });
         });
-    }
+        
+    },
+    
+    
 });

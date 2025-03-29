@@ -7,6 +7,11 @@ import requests
 
 class Invoice2ErpnextSettings(Document):
 	"""Settings for Invoice2ERPNext integration"""
+
+	def onload(self):
+		"""Run test_erpnext_connection if enabled is checked when document is loaded"""
+		if self.enabled:
+			self.test_erpnext_connection()
 		
 	@frappe.whitelist()
 	def test_erpnext_connection(self):
@@ -51,7 +56,7 @@ class Invoice2ErpnextSettings(Document):
 
 					# Update the document with the credits value
 					self.credits = credits
-					self.connection_status = "Connected"
+					self.enabled = 1
 					self.save()
 					
 					return {
@@ -61,12 +66,16 @@ class Invoice2ErpnextSettings(Document):
 					}
 				else:
 					error_msg = result.get("message", {}).get("message", "API returned error")
+					self.enabled = 0
+					self.save()
 					return {
 						"success": False,
 						"message": f"API Error: {error_msg}"
 					}
 			else:
 				# Handle HTTP errors
+				self.enabled = 0
+				self.save()
 				return {
 					"success": False,
 					"message": f"HTTP Error: {response.status_code} - {response.text}"
@@ -74,6 +83,9 @@ class Invoice2ErpnextSettings(Document):
 				
 		except Exception as e:
 			frappe.log_error(f"ERPNext API Connection Error: {str(e)}", "Invoice2ERPNext")
+			self.enabled = 0
+			self.connection_status = "Failed"
+			self.save()
 			return {
 				"success": False,
 				"message": f"Connection Error: {str(e)}"
