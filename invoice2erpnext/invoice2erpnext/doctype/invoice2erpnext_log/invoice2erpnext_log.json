@@ -7,8 +7,10 @@
  "field_order": [
   "single_file",
   "status",
+  "message",
+  "column_break_ftkp",
   "cost",
-  "message"
+  "created_docs"
  ],
  "fields": [
   {
@@ -39,11 +41,21 @@
    "fieldtype": "Long Text",
    "label": "Message",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ftkp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "created_docs",
+   "fieldtype": "Small Text",
+   "label": "Created Documents",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-29 10:31:06.782807",
+ "modified": "2025-03-29 10:32:54.241059",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Log",

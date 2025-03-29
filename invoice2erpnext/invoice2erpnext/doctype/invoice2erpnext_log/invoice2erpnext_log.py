@@ -50,6 +50,8 @@ class Invoice2ErpnextLog(Document):
                 for field, value in doc.items():
                     if field != "doctype":
                         new_doc.set(field, value)
+                if doc_type == "Purchase Invoice":
+                    new_doc.set("set_posting_time", 1)
                 # Save the document
                 new_doc.insert(ignore_permissions=True)
         # Update the log with the created document names
@@ -61,12 +63,7 @@ class Invoice2ErpnextLog(Document):
         if created_docs:
             frappe.db.set_value("Invoice2Erpnext Log", self.name, "created_docs", ", ".join(created_docs))
         # Update the status to "Completed"
-        frappe.db.set_value("Invoice2Erpnext Log", self.name, "status", "Completed")
-        # Optionally, you can add more logic here to handle the created documents
-        # For example, send notifications or update other records
-        # Handle any additional logic as needed
-        # You can also log the created documents for reference
-        # Log the created documents
+        frappe.db.set_value("Invoice2Erpnext Log", self.name, "status", "Success")
 
     def _transform_purchase_invoice(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
         """Transform generic invoice data to ERPNext Purchase Invoice format"""
@@ -262,7 +259,7 @@ def create_purchase_invoice_from_file(file_doc_name):
             # Check if the response has a success message in the expected format
             message = response_data.get("message", {})
             if isinstance(message, dict) and message.get("success"):
-                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Success")
+                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Retrieved")
                 doc.create_purchase_invoice()
             else:
                 # Handle error response with proper structure
