@@ -13,7 +13,28 @@ from frappe.utils import get_files_path, get_site_path
 
 
 class Invoice2ErpnextLog(Document):
-    pass
+    @frappe.whitelist()
+    def create_purchase_invoice(self):
+        if self.status != "Success":
+            frappe.throw(_("Cannot create Purchase Invoice. Status is not 'Success'."))
+        # Check if the message field contains a valid JSON string
+        try:
+            message_data = json.loads(self.message)
+        except json.JSONDecodeError:
+            frappe.throw(_("Invalid JSON format in message field."))
+        # Check if the message contains the expected structure
+        if not isinstance(message_data, dict) or "message" not in message_data:
+            frappe.throw(_("Invalid message structure in message field."))
+        # Extract the relevant data from the message
+        message = message_data["message"]
+        if not isinstance(message, dict) or "success" not in message:
+            frappe.throw(_("Invalid message structure in message field."))
+        if not message["success"]:
+            frappe.throw(_("API call was not successful."))
+        if not isinstance(message, dict) or "extracted_data" not in message:
+            frappe.throw(_("Invalid message structure in extracted_data field."))
+        extracted_data = json.loads(message["extracted_data"])
+        pass
 
 @frappe.whitelist()
 def create_purchase_invoice_from_file(file_doc_name):
@@ -95,6 +116,7 @@ def create_purchase_invoice_from_file(file_doc_name):
             message = response_data.get("message", {})
             if isinstance(message, dict) and message.get("success"):
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Success")
+                doc.create_purchase_invoice()
             else:
                 # Handle error response with proper structure
                 error_msg = message.get("message") if isinstance(message, dict) else str(message)
