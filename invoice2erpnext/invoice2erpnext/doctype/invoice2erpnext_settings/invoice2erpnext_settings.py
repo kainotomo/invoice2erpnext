@@ -48,6 +48,11 @@ class Invoice2ErpnextSettings(Document):
 				if result.get("message") and result["message"].get("success"):
 					# Extract credits from response
 					credits = result["message"].get("credits", 0)
+
+					# Update the document with the credits value
+					self.credits = credits
+					self.connection_status = "Connected"
+					self.save()
 					
 					return {
 						"success": True,

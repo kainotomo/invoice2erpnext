@@ -16,6 +16,9 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
                 doc: frm.doc,
                 callback: function(r) {
                     if (r.message && r.message.success) {
+                        frm.set_value('credits', r.message.credits);
+                        frm.save();
+                        
                         frappe.msgprint({
                             title: __('Connection Successful'),
                             indicator: 'green',
