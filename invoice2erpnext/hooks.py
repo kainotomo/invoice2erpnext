@@ -118,11 +118,11 @@ app_license = "MIT"
 # ---------------
 # Hook on document methods and events
 
-doc_events = {
-    "File": {
-		"after_insert": "invoice2erpnext.invoice2erpnext.doctype.invoice2erpnext.invoice2erpnext.set_file_from_communication"
-	}
-}
+#doc_events = {
+#    "File": {
+#		"after_insert": "invoice2erpnext.invoice2erpnext.doctype.invoice2erpnext.invoice2erpnext.set_file_from_communication"
+#	}
+#}
 
 # Scheduled Tasks
 # ---------------
