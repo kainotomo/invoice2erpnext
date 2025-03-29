@@ -35,14 +35,14 @@
    "default": "0",
    "fieldname": "enabled",
    "fieldtype": "Check",
-   "hidden": 1,
-   "label": "Enabled"
+   "label": "Enabled",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-29 09:02:50.484811",
+ "modified": "2025-03-29 09:10:36.770504",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",

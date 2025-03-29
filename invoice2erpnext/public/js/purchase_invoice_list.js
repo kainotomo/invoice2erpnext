@@ -1,13 +1,26 @@
 frappe.listview_settings['Purchase Invoice'] = {
     onload: function(listview) {
-        listview.page.add_inner_button(__('Upload'), function() {
-            new frappe.ui.FileUploader({
-                as_dataurl: false,
-                allow_multiple: true,
-                on_success: function(file_doc) {
-                    create_purchase_invoice_from_files(file_doc, listview);
+        // Check if integration is enabled before showing the upload button
+        frappe.call({
+            method: 'frappe.client.get_single_value',
+            args: {
+                doctype: 'Invoice2Erpnext Settings',
+                field: 'enabled'
+            },
+            callback: function(r) {
+                if (r.message === 1) {
+                    // Only add the upload button if enabled is 1
+                    listview.page.add_inner_button(__('Upload'), function() {
+                        new frappe.ui.FileUploader({
+                            as_dataurl: false,
+                            allow_multiple: true,
+                            on_success: function(file_doc) {
+                                create_purchase_invoice_from_files(file_doc, listview);
+                            }
+                        });
+                    });
                 }
-            });
+            }
         });
     }
 };
