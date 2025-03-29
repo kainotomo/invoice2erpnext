@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"1AWrWcS5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
+ "content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"jhv7lDXtTh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Logs\",\"col\":3}},{\"id\":\"1AWrWcS5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
  "creation": "2023-09-02 07:58:22.131565",
  "custom_blocks": [],
  "docstatus": 0,
@@ -12,7 +12,7 @@
  "is_hidden": 0,
  "label": "Invoice2Erpnext",
  "links": [],
- "modified": "2025-03-29 06:37:47.329459",
+ "modified": "2025-03-29 07:14:16.729750",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext",
@@ -29,6 +29,15 @@
    "doc_view": "List",
    "label": "Settings",
    "link_to": "Invoice2Erpnext Settings",
+   "type": "DocType"
+  },
+  {
+   "color": "Red",
+   "doc_view": "List",
+   "format": "{} Error",
+   "label": "Logs",
+   "link_to": "Invoice2Erpnext Log",
+   "stats_filter": "[[\"Invoice2Erpnext Log\",\"status\",\"=\",\"Error\",false]]",
    "type": "DocType"
   }
  ],
