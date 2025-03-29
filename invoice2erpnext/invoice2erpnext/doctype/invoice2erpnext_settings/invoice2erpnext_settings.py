@@ -4,6 +4,7 @@
 import frappe
 from frappe.model.document import Document
 import requests
+from invoice2erpnext.utils import format_currency_value
 
 class Invoice2ErpnextSettings(Document):
     """Settings for Invoice2ERPNext integration"""
@@ -56,28 +57,8 @@ class Invoice2ErpnextSettings(Document):
                     # Extract credits from response
                     credits = result["message"].get("credits", 0)
                     
-                    # Convert credits to proper format based on system settings
-                    # First ensure we have a float value to work with
-                    if isinstance(credits, str):
-                        # Handle if API returns with comma or period
-                        credits_float = float(credits.replace(',', '.'))
-                    else:
-                        credits_float = float(credits)
-                    
-                    # Get the number format from system settings
-                    number_format = frappe.get_system_settings('number_format')
-                    
-                    # Format according to the system's number format
-                    if number_format == "#.###,##":  # European format (1.234,56)
-                        formatted_credits = str(credits_float).replace(".", ",")
-                    elif number_format == "# ###.##":  # Format with space (1 234.56)
-                        integer_part, decimal_part = str(credits_float).split(".")
-                        formatted_credits = " ".join([integer_part, decimal_part])
-                    elif number_format == "#,###.##":  # US format (1,234.56)
-                        formatted_credits = str(credits_float)
-                    else:
-                        # Default format if none of the above
-                        formatted_credits = str(credits_float)
+                    # Use the utility function to format credits
+                    formatted_credits = format_currency_value(credits)
                     
                     return {
                         "success": True,

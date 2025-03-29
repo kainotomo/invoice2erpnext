@@ -11,6 +11,7 @@ import mimetypes
 from urllib.parse import urljoin
 from frappe.utils import get_files_path, get_site_path
 from typing import Dict, Any, List
+from invoice2erpnext.utils import format_currency_value  # Import the utility function
 
 
 class Invoice2ErpnextLog(Document):
@@ -34,8 +35,9 @@ class Invoice2ErpnextLog(Document):
             frappe.throw(_("API call was not successful."))
         if not isinstance(message, dict) or "cost" not in message:
             frappe.throw(_("Invalid message structure in message field."))
-        cost = message["cost"]
-        frappe.db.set_value("Invoice2Erpnext Log", self.cost, "cost", cost)
+        
+        frappe.db.set_value("Invoice2Erpnext Log", self.name, "cost", message["cost"])
+        
         if not isinstance(message, dict) or "extracted_data" not in message:
             frappe.throw(_("Invalid message structure in extracted_data field."))
         extracted_data = json.loads(message["extracted_data"])
