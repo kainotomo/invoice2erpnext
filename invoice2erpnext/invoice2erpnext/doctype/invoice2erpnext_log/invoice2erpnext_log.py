@@ -6,7 +6,10 @@ from frappe import _
 from frappe.model.document import Document
 import requests
 import json
+import os
+import mimetypes
 from urllib.parse import urljoin
+from frappe.utils import get_files_path, get_site_path
 
 
 class Invoice2ErpnextLog(Document):
@@ -45,22 +48,42 @@ def create_purchase_invoice_from_file(file_doc_name):
     endpoint = "/api/method/doc2sys.doc2sys.doctype.doc2sys_item.doc2sys_item.upload_and_create_item"
     api_url = urljoin(base_url, endpoint)
     
-    # Prepare form data
-    form_data = {
-        "file": file_doc.file_url,
-        "is_private": 1
-    }
-    
     try:
-        # Make the API call
-        response = requests.post(
-            api_url,
-            headers=headers,
-            data=form_data
-        )
+        # Get the file from the filesystem
+        file_name = os.path.basename(file_doc.file_url)
+        # Handle both public and private files
+        if file_doc.is_private:
+            file_path = os.path.join(get_files_path(), file_doc.file_name)
+        else:
+            site_path = get_site_path('public', 'files')
+            file_path = os.path.join(site_path, file_doc.file_name)
         
-        # Store response as a message instead of using api_response field
-        response_text = response.text
+        if not os.path.exists(file_path):
+            frappe.throw(_("File not found on disk: {}").format(file_path))
+        
+        # Determine content type based on file extension
+        content_type, _ = mimetypes.guess_type(file_name)
+        if not content_type:
+            content_type = 'application/octet-stream'  # Default content type
+        
+        # Open the file in binary mode and create the files object for multipart/form-data
+        with open(file_path, 'rb') as file_content:
+            files = {
+                'file': (file_name, file_content, content_type)
+            }
+            
+            # Prepare form data
+            form_data = {
+                "is_private": "1"
+            }
+            
+            # Make the API call with multipart/form-data
+            response = requests.post(
+                api_url,
+                headers=headers,
+                files=files,
+                data=form_data
+            )
         
         # Check if the request was successful
         if response.status_code == 200:
@@ -69,22 +92,25 @@ def create_purchase_invoice_from_file(file_doc_name):
             # Store full response as a JSON string in the message field
             frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", json.dumps(response_data))
             
-            if response_data.get("success"):
+            # Check if the response has a success message in the expected format
+            message = response_data.get("message", {})
+            if isinstance(message, dict) and message.get("success"):
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Success")
                 
                 # If doc2sys_item is in the response, store it
-                if response_data.get("doc2sys_item"):
+                if message.get("doc2sys_item"):
                     frappe.db.set_value("Invoice2Erpnext Log", doc.name, "doc2sys_item", 
-                                         response_data.get("doc2sys_item"))
+                                        message.get("doc2sys_item"))
             else:
-                error_msg = response_data.get("message", "API returned error")
+                # Handle error response with proper structure
+                error_msg = message.get("message") if isinstance(message, dict) else str(message)
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Error")
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", 
-                                     f"API Error: {error_msg}")
+                                    f"API Error: {error_msg}")
         else:
             frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Error")
             frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", 
-                                 f"HTTP Error: {response.status_code}")
+                                f"HTTP Error: {response.status_code} - {response.text}")
     
     except Exception as e:
         frappe.log_error(f"API Connection Error: {str(e)}", "Invoice2ERPNext")
