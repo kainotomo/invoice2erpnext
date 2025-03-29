@@ -47,16 +47,15 @@ def create_purchase_invoice_from_file(file_doc_name):
     # Prepare the API endpoint
     endpoint = "/api/method/doc2sys.doc2sys.doctype.doc2sys_item.doc2sys_item.upload_and_create_item"
     api_url = urljoin(base_url, endpoint)
-    
+
     try:
         # Get the file from the filesystem
         file_name = os.path.basename(file_doc.file_url)
         # Handle both public and private files
         if file_doc.is_private:
-            file_path = os.path.join(get_files_path(), file_doc.file_name)
+            file_path = os.path.join(get_files_path(is_private=True), file_doc.file_name)
         else:
-            site_path = get_site_path('public', 'files')
-            file_path = os.path.join(site_path, file_doc.file_name)
+            file_path = os.path.join(get_files_path(), file_doc.file_name)
         
         if not os.path.exists(file_path):
             frappe.throw(_("File not found on disk: {}").format(file_path))
@@ -96,11 +95,6 @@ def create_purchase_invoice_from_file(file_doc_name):
             message = response_data.get("message", {})
             if isinstance(message, dict) and message.get("success"):
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Success")
-                
-                # If doc2sys_item is in the response, store it
-                if message.get("doc2sys_item"):
-                    frappe.db.set_value("Invoice2Erpnext Log", doc.name, "doc2sys_item", 
-                                        message.get("doc2sys_item"))
             else:
                 # Handle error response with proper structure
                 error_msg = message.get("message") if isinstance(message, dict) else str(message)
