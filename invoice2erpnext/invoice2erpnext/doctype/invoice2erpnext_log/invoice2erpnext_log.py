@@ -59,22 +59,32 @@ def create_purchase_invoice_from_file(file_doc_name):
             data=form_data
         )
         
-        # Update the log with the response
-        frappe.db.set_value("Invoice2Erpnext Log", doc.name, "api_response", response.text)
+        # Store response as a message instead of using api_response field
+        response_text = response.text
         
         # Check if the request was successful
         if response.status_code == 200:
             response_data = response.json()
-            if response_data.get("message") and response_data["message"].get("success"):
+            
+            # Store full response as a JSON string in the message field
+            frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", json.dumps(response_data))
+            
+            if response_data.get("success"):
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Success")
-                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", "Item created successfully")
+                
+                # If doc2sys_item is in the response, store it
+                if response_data.get("doc2sys_item"):
+                    frappe.db.set_value("Invoice2Erpnext Log", doc.name, "doc2sys_item", 
+                                         response_data.get("doc2sys_item"))
             else:
-                error_msg = response_data.get("message", {}).get("message", "API returned error")
+                error_msg = response_data.get("message", "API returned error")
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Error")
-                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", f"API Error: {error_msg}")
+                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", 
+                                     f"API Error: {error_msg}")
         else:
             frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Error")
-            frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", f"HTTP Error: {response.status_code}")
+            frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", 
+                                 f"HTTP Error: {response.status_code}")
     
     except Exception as e:
         frappe.log_error(f"API Connection Error: {str(e)}", "Invoice2ERPNext")
