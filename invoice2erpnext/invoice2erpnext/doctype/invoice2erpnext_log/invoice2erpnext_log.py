@@ -10,6 +10,7 @@ import os
 import mimetypes
 from urllib.parse import urljoin
 from frappe.utils import get_files_path, get_site_path
+from typing import Dict, Any, List
 
 
 class Invoice2ErpnextLog(Document):
@@ -34,7 +35,153 @@ class Invoice2ErpnextLog(Document):
         if not isinstance(message, dict) or "extracted_data" not in message:
             frappe.throw(_("Invalid message structure in extracted_data field."))
         extracted_data = json.loads(message["extracted_data"])
-        pass
+        result = self._transform_purchase_invoice(extracted_data)
+        if not result.get("success"):
+            frappe.throw(_("Transformation failed."))
+        erpnext_docs = result.get("erpnext_docs", [])
+        if not erpnext_docs:
+            frappe.throw(_("No documents to create."))
+        # Create each document in ERPNext
+        for doc in erpnext_docs:
+            doc_type = doc.get("doctype")
+            if doc_type:
+                # Create the document in ERPNext
+                new_doc = frappe.new_doc(doc_type)
+                for field, value in doc.items():
+                    if field != "doctype":
+                        new_doc.set(field, value)
+                # Save the document
+                new_doc.insert(ignore_permissions=True)
+        # Update the log with the created document names
+        created_docs = []
+        for doc in erpnext_docs:
+            doc_type = doc.get("doctype")
+            if doc_type == "Purchase Invoice":
+                created_docs.append(doc.get("title"))
+        if created_docs:
+            frappe.db.set_value("Invoice2Erpnext Log", self.name, "created_docs", ", ".join(created_docs))
+        # Update the status to "Completed"
+        frappe.db.set_value("Invoice2Erpnext Log", self.name, "status", "Completed")
+        # Optionally, you can add more logic here to handle the created documents
+        # For example, send notifications or update other records
+        # Handle any additional logic as needed
+        # You can also log the created documents for reference
+        # Log the created documents
+
+    def _transform_purchase_invoice(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform generic invoice data to ERPNext Purchase Invoice format"""
+        # Create ERPNext-specific document structure
+        erpnext_docs = []
+        
+        # Create a Supplier doc if supplier information is available
+        if extracted_data.get("supplier_name"):
+            supplier_doc = {
+                "doctype": "Supplier",
+                "supplier_name": extracted_data.get("supplier_name"),
+                "supplier_type": "Company",  # Default value
+                "supplier_group": "All Supplier Groups",  # Default value
+            }
+            
+            # Add email if available
+            if extracted_data.get("supplier_email"):
+                supplier_doc["email_id"] = extracted_data.get("supplier_email")
+                
+            # Add phone if available  
+            if extracted_data.get("supplier_phone"):
+                supplier_doc["mobile_no"] = extracted_data.get("supplier_phone")
+                
+            erpnext_docs.append(supplier_doc)
+        
+        # Create Item docs for each line item
+        actual_items = []
+        items = extracted_data.get("items", [])
+        for item in items:
+            # Skip special entries like totals or payment methods
+            if item.get("description") and not any(keyword in item.get("description", "").lower() 
+                                                  for keyword in ["total", "credit card", "payment"]):
+                item_doc = {
+                    "doctype": "Item",
+                    "item_name": item.get("description"),
+                    "item_code": item.get("item_code") or item.get("description"),
+                    "item_group": "All Item Groups",  # Default value
+                    "stock_uom": "Nos",  # Default value
+                    "is_stock_item": 0,
+                    "is_purchase_item": 1
+                }
+                erpnext_docs.append(item_doc)
+                actual_items.append(item)
+        
+        # Create Purchase Invoice doc
+        invoice_doc = {
+            "doctype": "Purchase Invoice",
+            "title": extracted_data.get("supplier_name", "Unknown"),
+            "supplier": extracted_data.get("supplier_name"),
+            "posting_date": extracted_data.get("invoice_date"),
+            "bill_no": extracted_data.get("invoice_number"),
+            "due_date": extracted_data.get("due_date"),
+            "items": [],
+            "taxes": []
+        }
+        
+        # Set currency if available
+        if extracted_data.get("currency"):
+            invoice_doc["currency"] = extracted_data.get("currency")
+        
+        # Add items to the invoice (only actual product items)
+        for item in actual_items:
+            invoice_item = {
+                "item_code": item.get("item_code") or item.get("description"),
+                "item_name": item.get("description"),
+                "description": item.get("description"),
+                "qty": item.get("quantity", 1),
+                "rate": item.get("unit_price", 0),
+                "amount": item.get("amount", 0)
+            }
+            invoice_doc["items"].append(invoice_item)
+        
+        # Add tax information if available
+        if extracted_data.get("tax_amount"):
+            # Get the VAT account from settings or use a default value
+            vat_account = self.settings.get("vat_account") or "VAT - XXX"
+            
+            tax_row = {
+                "doctype": "Purchase Taxes and Charges",
+                "charge_type": "Actual",
+                "account_head": vat_account,  # Use the account from settings
+                "description": "Tax",
+                "tax_amount": extracted_data.get("tax_amount", 0),
+                "category": "Total",
+                "add_deduct_tax": "Add"
+            }
+            invoice_doc["taxes"].append(tax_row)
+        
+        # Set total amounts
+        if extracted_data.get("subtotal"):
+            invoice_doc["net_total"] = extracted_data.get("subtotal")
+        
+        if extracted_data.get("total_amount"):
+            invoice_doc["grand_total"] = extracted_data.get("total_amount")
+            invoice_doc["rounded_total"] = extracted_data.get("total_amount")
+                
+        erpnext_docs.append(invoice_doc)
+
+        # Define doctype priorities - lower number = higher priority
+        doctype_priority = {
+            "Supplier": 1,
+            "Item": 2,
+            "Purchase Invoice": 3,
+        }
+        
+        # Sort items by doctype priority to ensure dependencies are created first
+        # Items consistently have a nested "doc" structure in the new format
+        sorted_items = sorted(erpnext_docs, key=lambda x: doctype_priority.get(
+            x.get("doctype", ""), 999
+        ))
+        
+        return {
+            "success": True,
+            "erpnext_docs": sorted_items
+        }
 
 @frappe.whitelist()
 def create_purchase_invoice_from_file(file_doc_name):
