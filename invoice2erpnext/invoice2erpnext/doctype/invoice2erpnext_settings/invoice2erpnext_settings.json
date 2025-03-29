@@ -6,8 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "api_key",
-  "api_secret",
-  "credits"
+  "api_secret"
  ],
  "fields": [
   {
@@ -19,18 +18,12 @@
    "fieldname": "api_secret",
    "fieldtype": "Password",
    "label": "API Secret"
-  },
-  {
-   "fieldname": "credits",
-   "fieldtype": "Currency",
-   "label": "Credits",
-   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-29 07:25:44.995015",
+ "modified": "2025-03-29 07:39:14.099556",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",
