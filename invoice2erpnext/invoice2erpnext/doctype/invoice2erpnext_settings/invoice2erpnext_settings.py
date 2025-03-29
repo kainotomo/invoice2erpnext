@@ -12,6 +12,13 @@ class Invoice2ErpnextSettings(Document):
 	def get_credits(self):
 		"""Test connection to ERPNext API and fetch user credits"""
 		
+		# Check if integration is enabled
+		if hasattr(self, 'enabled') and self.enabled == 0:
+			return {
+				"success": False,
+				"message": "Integration is disabled. Please enable it in settings."
+			}
+		
 		# Base URL is defined as a constant
 		BASE_URL = "http://development.localhost:8001/"
 		
@@ -77,6 +84,7 @@ class Invoice2ErpnextSettings(Document):
 	@frappe.whitelist()
 	def test_connection(self):
 		"""Test the connection to the ERPNext API"""
+		self.enabled = 1
 		result = self.get_credits()
 		if result.get("success"):
 			self.enabled = 1

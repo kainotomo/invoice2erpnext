@@ -8,11 +8,16 @@ def get_credits():
         settings = frappe.get_doc("Invoice2Erpnext Settings")
         
         # Get credits value or 0 if not set
-        credits_value = settings.get_credits() if hasattr(settings, "credits") else 0
+        result = settings.get_credits()
+        
+        # Extract credits from result if successful
+        credits = 0
+        if result.get("success") and "credits" in result:
+            credits = result["credits"]
         
         # Return formatted response
         return {
-            "value": credits_value,
+            "value": credits,
             "fieldtype": "Currency",
         }
     except Exception as e:
