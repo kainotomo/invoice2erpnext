@@ -275,6 +275,7 @@ def create_purchase_invoice_from_file(file_doc_name):
             if isinstance(message, dict) and message.get("success"):
                 frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Retrieved")
                 frappe.db.commit()
+                doc.reload()
                 doc.create_purchase_invoice()
             else:
                 # Handle error response with proper structure
