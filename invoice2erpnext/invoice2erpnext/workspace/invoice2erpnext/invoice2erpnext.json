@@ -12,7 +12,7 @@
  "is_hidden": 0,
  "label": "Invoice2Erpnext",
  "links": [],
- "modified": "2025-03-29 08:38:45.472120",
+ "modified": "2025-03-29 19:09:09.372269",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext",
@@ -27,7 +27,7 @@
  "public": 1,
  "quick_lists": [],
  "roles": [],
- "sequence_id": 24.0,
+ "sequence_id": 1.0,
  "shortcuts": [
   {
    "color": "Grey",
