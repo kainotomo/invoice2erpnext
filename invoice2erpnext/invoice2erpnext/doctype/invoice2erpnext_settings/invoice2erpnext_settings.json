@@ -5,11 +5,9 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "credits_section",
-  "credits",
-  "enabled",
   "api_credentials_section",
   "api_key",
+  "enabled",
   "column_break_trjd",
   "api_secret"
  ],
@@ -25,18 +23,6 @@
    "label": "API Secret"
   },
   {
-   "bold": 1,
-   "fieldname": "credits",
-   "fieldtype": "Currency",
-   "label": "Remaining",
-   "read_only": 1
-  },
-  {
-   "fieldname": "credits_section",
-   "fieldtype": "Section Break",
-   "label": "Credits"
-  },
-  {
    "fieldname": "api_credentials_section",
    "fieldtype": "Section Break",
    "label": "API Credentials"
@@ -49,14 +35,13 @@
    "default": "0",
    "fieldname": "enabled",
    "fieldtype": "Check",
-   "hidden": 1,
    "label": "Enabled"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-29 08:05:39.762475",
+ "modified": "2025-03-29 08:55:30.964561",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",

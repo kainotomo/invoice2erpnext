@@ -5,32 +5,28 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
     refresh: function(frm) {
         // Add a button to test the connection
         frm.add_custom_button(__('Test Connection'), function() {
-            frm.save().then(() => {
-                frm.call({
-                    doc: frm.doc,
-                    method: 'test_erpnext_connection',
-                    callback: function(r) {
-                        if (r.message && r.message.success) {
-                            frappe.msgprint({
-                                title: __('Success'),
-                                indicator: 'green',
-                                message: __('Connection successful! Credits: {0}', [r.message.credits])
-                            });
-                        } else {
-                            frappe.msgprint({
-                                title: __('Error'),
-                                indicator: 'red',
-                                message: r.message ? r.message.message : __('Connection failed')
-                            });
-                        }
-                        // Reload the form to reflect updated values
-                        frm.reload_doc();
+            frm.call({
+                doc: frm.doc,
+                method: 'test_connection',
+                callback: function(r) {
+                    if (r.message && r.message.success) {
+                        frappe.msgprint({
+                            title: __('Success'),
+                            indicator: 'green',
+                            message: __('Connection successful! Credits: {0}', [r.message.credits])
+                        });
+                    } else {
+                        frappe.msgprint({
+                            title: __('Error'),
+                            indicator: 'red',
+                            message: r.message ? r.message.message : __('Connection failed')
+                        });
                     }
-                });
+                    // Reload the form to reflect updated values
+                    frm.reload_doc();
+                }
             });
         });
         
     },
-    
-    
 });
