@@ -48,14 +48,14 @@
   },
   {
    "fieldname": "created_docs",
-   "fieldtype": "Small Text",
+   "fieldtype": "Data",
    "label": "Created Documents",
    "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-29 10:32:54.241059",
+ "modified": "2025-03-29 10:47:14.319724",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Log",

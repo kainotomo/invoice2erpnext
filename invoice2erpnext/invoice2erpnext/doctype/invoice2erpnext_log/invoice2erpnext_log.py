@@ -16,8 +16,8 @@ from typing import Dict, Any, List
 class Invoice2ErpnextLog(Document):
     @frappe.whitelist()
     def create_purchase_invoice(self):
-        if self.status != "Success":
-            frappe.throw(_("Cannot create Purchase Invoice. Status is not 'Success'."))
+        if self.status != "Retrieved":
+            frappe.throw(_("Cannot create Purchase Invoice. Status is not 'Retrieved'."))
         # Check if the message field contains a valid JSON string
         try:
             message_data = json.loads(self.message)
