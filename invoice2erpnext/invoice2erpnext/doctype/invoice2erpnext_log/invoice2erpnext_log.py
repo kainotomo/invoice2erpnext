@@ -67,12 +67,29 @@ class Invoice2ErpnextLog(Document):
                 new_doc.insert(ignore_permissions=True)
         # Update the log with the created document names
         created_docs = []
+        created_purchase_invoices = []
         for doc in erpnext_docs:
             doc_type = doc.get("doctype")
             if doc_type == "Purchase Invoice":
+                # Get the name of the created Purchase Invoice
+                invoice_name = new_doc.name
                 created_docs.append(doc.get("title"))
+                created_purchase_invoices.append(invoice_name)
+        
         if created_docs:
             self.created_docs = ", ".join(created_docs)
+        
+        # Modify the original file to link it to the Purchase Invoice
+        if created_purchase_invoices and self.file:
+            try:
+                file_doc = frappe.get_doc("File", self.file)
+                if file_doc:
+                    # Update the file to be attached to the Purchase Invoice
+                    file_doc.attached_to_doctype = "Purchase Invoice"
+                    file_doc.attached_to_name = created_purchase_invoices[0]  # Attach to the first invoice
+                    file_doc.save(ignore_permissions=True)
+            except Exception as e:
+                frappe.log_error(f"Error attaching file to Purchase Invoice: {str(e)}")
 
         # Update the status to "Completed"
         self.status = "Success"
