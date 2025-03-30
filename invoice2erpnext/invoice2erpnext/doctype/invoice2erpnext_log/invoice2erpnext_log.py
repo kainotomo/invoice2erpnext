@@ -17,18 +17,16 @@ from invoice2erpnext.utils import format_currency_value  # Import the utility fu
 class Invoice2ErpnextLog(Document):
     @frappe.whitelist()
     def create_purchase_invoice(self):
-        if self.status != "Retrieved":
-            frappe.throw(_("Cannot create Purchase Invoice. Status is not 'Retrieved'."))
         # Check if the message field contains a valid JSON string
         try:
-            message_data = json.loads(self.message)
+            response_data = json.loads(self.response)
         except json.JSONDecodeError:
             frappe.throw(_("Invalid JSON format in message field."))
         # Check if the message contains the expected structure
-        if not isinstance(message_data, dict) or "message" not in message_data:
+        if not isinstance(response_data, dict) or "message" not in response_data:
             frappe.throw(_("Invalid message structure in message field."))
         # Extract the relevant data from the message
-        message = message_data["message"]
+        message = response_data["message"]
         if not isinstance(message, dict) or "success" not in message:
             frappe.throw(_("Invalid message structure in message field."))
         if not message["success"]:
@@ -36,7 +34,7 @@ class Invoice2ErpnextLog(Document):
         if not isinstance(message, dict) or "cost" not in message:
             frappe.throw(_("Invalid message structure in message field."))
         
-        frappe.db.set_value("Invoice2Erpnext Log", self.name, "cost", message["cost"])
+        self.cost = message["cost"]
         
         if not isinstance(message, dict) or "extracted_data" not in message:
             frappe.throw(_("Invalid message structure in extracted_data field."))
@@ -75,9 +73,11 @@ class Invoice2ErpnextLog(Document):
             if doc_type == "Purchase Invoice":
                 created_docs.append(doc.get("title"))
         if created_docs:
-            frappe.db.set_value("Invoice2Erpnext Log", self.name, "created_docs", ", ".join(created_docs))
+            self.created_docs = ", ".join(created_docs)
+
         # Update the status to "Completed"
-        frappe.db.set_value("Invoice2Erpnext Log", self.name, "status", "Success")
+        self.status = "Success"
+        self.save()
 
     def _transform_purchase_invoice(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
         """Transform generic invoice data to ERPNext Purchase Invoice format"""
@@ -203,10 +203,9 @@ def create_purchase_invoice_from_file(file_doc_name):
     
     # Create new Invoice2Erpnext Log
     doc = frappe.new_doc("Invoice2Erpnext Log")
+    doc.single_file = file_doc.file_url
     doc.insert()
     frappe.db.commit()
-    
-    frappe.db.set_value("Invoice2Erpnext Log", doc.name, "single_file", file_doc.file_url)
 
     # Get settings for API connection
     settings = frappe.get_doc("Invoice2Erpnext Settings")
@@ -266,31 +265,29 @@ def create_purchase_invoice_from_file(file_doc_name):
         # Check if the request was successful
         if response.status_code == 200:
             response_data = response.json()
-            
-            # Store full response as a JSON string in the message field
-            frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", json.dumps(response_data))
+            doc.response = json.dumps(response_data)
             
             # Check if the response has a success message in the expected format
             message = response_data.get("message", {})
             if isinstance(message, dict) and message.get("success"):
-                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Retrieved")
+                doc.status = "Retrieved"
+                doc.message = _("Response retrieved successfully.")
+                doc.save()
                 frappe.db.commit()
                 doc.reload()
                 doc.create_purchase_invoice()
             else:
                 # Handle error response with proper structure
                 error_msg = message.get("message") if isinstance(message, dict) else str(message)
-                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Error")
-                frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", 
-                                    f"API Error: {error_msg}")
+                doc.status = "Error"
+                doc.message = f"API Error: {error_msg}"
         else:
-            frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Error")
-            frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", 
-                                f"HTTP Error: {response.status_code} - {response.text}")
+            doc.status = "Error"
+            doc.message = f"HTTP Error: {response.status_code} - {response.text}"
     
     except Exception as e:
-        frappe.log_error(f"API Connection Error: {str(e)}", "Invoice2ERPNext")
-        frappe.db.set_value("Invoice2Erpnext Log", doc.name, "status", "Error")
-        frappe.db.set_value("Invoice2Erpnext Log", doc.name, "message", f"Connection Error: {str(e)}")
+        doc.status = "Error"
+        doc.message = f"Connection Error: {str(e)}"
     
+    doc.save()
     return doc.name

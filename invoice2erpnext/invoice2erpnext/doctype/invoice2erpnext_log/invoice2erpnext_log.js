@@ -4,7 +4,7 @@
 frappe.ui.form.on("Invoice2Erpnext Log", {
     refresh(frm) {
         // Only show the button if the document is saved and has a "Success" status
-        if (!frm.is_new() && frm.doc.status === "Retrieved") {
+        if (!frm.is_new() && frm.doc.status != "Success") {
             frm.add_custom_button(__('Create Purchase Invoice'), function() {
                 frm.call({
                     doc: frm.doc,
