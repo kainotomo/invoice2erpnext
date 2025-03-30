@@ -214,7 +214,7 @@ def create_purchase_invoice_from_file(file_doc_name):
     
     # Get base URL, API key and API secret
     base_url = settings.BASE_URL
-    api_key = settings.get_password('api_key')
+    api_key = settings.get('api_key')
     api_secret = settings.get_password('api_secret')
     
     # Set up API headers with authentication
