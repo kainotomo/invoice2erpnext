@@ -203,7 +203,7 @@ def create_purchase_invoice_from_file(file_doc_name):
     
     # Create new Invoice2Erpnext Log
     doc = frappe.new_doc("Invoice2Erpnext Log")
-    doc.single_file = file_doc.file_url
+    doc.file = file_doc_name
     doc.insert()
     frappe.db.commit()
 

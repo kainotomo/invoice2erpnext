@@ -5,7 +5,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "single_file",
+  "file",
   "status",
   "message",
   "column_break_ftkp",
@@ -14,13 +14,6 @@
   "response"
  ],
  "fields": [
-  {
-   "fieldname": "single_file",
-   "fieldtype": "Attach",
-   "in_list_view": 1,
-   "label": "File",
-   "read_only": 1
-  },
   {
    "fieldname": "status",
    "fieldtype": "Select",
@@ -58,11 +51,19 @@
    "fieldtype": "Long Text",
    "label": "Response",
    "read_only": 1
+  },
+  {
+   "fieldname": "file",
+   "fieldtype": "Link",
+   "label": "File",
+   "options": "File",
+   "read_only": 1,
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-30 07:39:40.756796",
+ "modified": "2025-03-30 10:56:15.061009",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Log",
