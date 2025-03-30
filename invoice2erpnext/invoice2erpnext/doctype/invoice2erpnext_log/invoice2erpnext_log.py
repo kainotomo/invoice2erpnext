@@ -197,6 +197,8 @@ class Invoice2ErpnextLog(Document):
 @frappe.whitelist()
 def create_purchase_invoice_from_file(file_doc_name):
     """Create a Purchase Invoice from an existing File document"""
+    from frappe import _
+
     file_doc = frappe.get_doc("File", file_doc_name)
     if not file_doc:
         frappe.throw(_("File not found"))
