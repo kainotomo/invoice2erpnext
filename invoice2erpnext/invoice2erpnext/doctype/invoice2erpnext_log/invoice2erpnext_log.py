@@ -298,16 +298,16 @@ def create_purchase_invoice_from_file(file_doc_name):
                 error_msg = message.get("message") if isinstance(message, dict) else str(message)
                 doc.status = "Error"
                 doc.message = f"API Error: {error_msg}"
-                frappe.msgprint(f"Error: {error_msg}")
+                frappe.msgprint(f"Error: {error_msg}<br>See <a href='/app/invoice2erpnext-log/{doc.name}'>Log #{doc.name}</a> for details")
         else:
             doc.status = "Error"
             doc.message = f"HTTP Error: {response.status_code} - {response.text}"
-            frappe.msgprint(f"Error: {response.status_code} - {response.text}")
+            frappe.msgprint(f"Error: {response.status_code} - {response.text}<br>See <a href='/app/invoice2erpnext-log/{doc.name}'>Log #{doc.name}</a> for details")
     
     except Exception as e:
         doc.status = "Error"
         doc.message = f"Connection Error: {str(e)}"
-        frappe.msgprint(f"Error: {str(e)}")
+        frappe.msgprint(f"Error: {str(e)}<br>See <a href='/app/invoice2erpnext-log/{doc.name}'>Log #{doc.name}</a> for details")
     
     doc.save()
     return doc.name

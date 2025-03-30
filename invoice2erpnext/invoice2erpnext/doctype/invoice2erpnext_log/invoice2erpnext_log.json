@@ -5,11 +5,11 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "file",
   "status",
+  "file",
+  "cost",
   "message",
   "column_break_ftkp",
-  "cost",
   "created_docs",
   "response"
  ],
@@ -63,7 +63,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-30 10:56:15.061009",
+ "modified": "2025-03-30 11:26:18.591252",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Log",
