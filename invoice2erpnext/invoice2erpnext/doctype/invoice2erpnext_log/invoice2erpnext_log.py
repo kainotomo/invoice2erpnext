@@ -2,7 +2,6 @@
 # For license information, please see license.txt
 
 import frappe
-from frappe import _
 from frappe.model.document import Document
 import requests
 import json
@@ -21,30 +20,30 @@ class Invoice2ErpnextLog(Document):
         try:
             response_data = json.loads(self.response)
         except json.JSONDecodeError:
-            frappe.throw(_("Invalid JSON format in message field."))
+            frappe.throw("Invalid JSON format in message field.")
         # Check if the message contains the expected structure
         if not isinstance(response_data, dict) or "message" not in response_data:
-            frappe.throw(_("Invalid message structure in message field."))
+            frappe.throw("Invalid message structure in message field.")
         # Extract the relevant data from the message
         message = response_data["message"]
         if not isinstance(message, dict) or "success" not in message:
-            frappe.throw(_("Invalid message structure in message field."))
+            frappe.throw("Invalid message structure in message field.")
         if not message["success"]:
-            frappe.throw(_("API call was not successful."))
+            frappe.throw("API call was not successful.")
         if not isinstance(message, dict) or "cost" not in message:
-            frappe.throw(_("Invalid message structure in message field."))
+            frappe.throw("Invalid message structure in message field.")
         
         self.cost = message["cost"]
         
         if not isinstance(message, dict) or "extracted_data" not in message:
-            frappe.throw(_("Invalid message structure in extracted_data field."))
+            frappe.throw("Invalid message structure in extracted_data field.")
         extracted_data = json.loads(message["extracted_data"])
         result = self._transform_purchase_invoice(extracted_data)
         if not result.get("success"):
-            frappe.throw(_("Transformation failed."))
+            frappe.throw("Transformation failed.")
         erpnext_docs = result.get("erpnext_docs", [])
         if not erpnext_docs:
-            frappe.throw(_("No documents to create."))
+            frappe.throw("No documents to create.")
         # Create each document in ERPNext
         for doc in erpnext_docs:
             doc_type = doc.get("doctype")
@@ -197,11 +196,10 @@ class Invoice2ErpnextLog(Document):
 @frappe.whitelist()
 def create_purchase_invoice_from_file(file_doc_name):
     """Create a Purchase Invoice from an existing File document"""
-    from frappe import _
 
     file_doc = frappe.get_doc("File", file_doc_name)
     if not file_doc:
-        frappe.throw(_("File not found"))
+        frappe.throw("File not found")
     
     # Create new Invoice2Erpnext Log
     doc = frappe.new_doc("Invoice2Erpnext Log")
@@ -212,7 +210,7 @@ def create_purchase_invoice_from_file(file_doc_name):
     # Get settings for API connection
     settings = frappe.get_doc("Invoice2Erpnext Settings")
     if not settings:
-        frappe.throw(_("Invoice2Erpnext Settings not found"))
+        frappe.throw("Invoice2Erpnext Settings not found")
     
     # Get base URL, API key and API secret
     base_url = settings.BASE_URL
@@ -238,7 +236,7 @@ def create_purchase_invoice_from_file(file_doc_name):
             file_path = os.path.join(get_files_path(), file_doc.file_name)
         
         if not os.path.exists(file_path):
-            frappe.throw(_("File not found on disk: {}").format(file_path))
+            frappe.throw("File not found on disk: {}").format(file_path)
         
         # Determine content type based on file extension
         content_type, _ = mimetypes.guess_type(file_name)
@@ -273,7 +271,7 @@ def create_purchase_invoice_from_file(file_doc_name):
             message = response_data.get("message", {})
             if isinstance(message, dict) and message.get("success"):
                 doc.status = "Retrieved"
-                doc.message = _("Response retrieved successfully.")
+                doc.message = "Response retrieved successfully."
                 doc.save()
                 frappe.db.commit()
                 doc.reload()
