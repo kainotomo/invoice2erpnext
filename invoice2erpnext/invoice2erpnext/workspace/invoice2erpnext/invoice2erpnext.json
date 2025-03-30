@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"N26Id6k6iX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Invoice File\",\"col\":3}},{\"id\":\"VUxUyJVunO\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Invoice Template\",\"col\":3}}]",
+ "content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"3sCUU4rAB6\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Available Credits\",\"col\":4}},{\"id\":\"w1IJ8kd86B\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"jhv7lDXtTh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Logs\",\"col\":3}},{\"id\":\"1AWrWcS5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
  "creation": "2023-09-02 07:58:22.131565",
  "custom_blocks": [],
  "docstatus": 0,
@@ -12,30 +12,37 @@
  "is_hidden": 0,
  "label": "Invoice2Erpnext",
  "links": [],
- "modified": "2023-09-02 07:59:39.211900",
+ "modified": "2025-03-29 19:09:09.372269",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Available Credits",
+   "number_card_name": "Available Credits"
+  }
+ ],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
  "quick_lists": [],
  "roles": [],
- "sequence_id": 23.0,
+ "sequence_id": 1.0,
  "shortcuts": [
   {
    "color": "Grey",
    "doc_view": "List",
-   "label": "Invoice File",
-   "link_to": "Invoice File",
+   "label": "Settings",
+   "link_to": "Invoice2Erpnext Settings",
    "type": "DocType"
   },
   {
-   "color": "Grey",
+   "color": "Red",
    "doc_view": "List",
-   "label": "Invoice Template",
-   "link_to": "Invoice Template",
+   "format": "{} Error",
+   "label": "Logs",
+   "link_to": "Invoice2Erpnext Log",
+   "stats_filter": "[[\"Invoice2Erpnext Log\",\"status\",\"=\",\"Error\",false]]",
    "type": "DocType"
   }
  ],

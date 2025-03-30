@@ -30,7 +30,7 @@ app_license = "MIT"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-# doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
+doctype_list_js = {"Purchase Invoice" : "public/js/purchase_invoice_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
@@ -118,11 +118,11 @@ app_license = "MIT"
 # ---------------
 # Hook on document methods and events
 
-doc_events = {
-    "File": {
-		"after_insert": "invoice2erpnext.invoice2erpnext.doctype.invoice_file.invoice_file.set_file_from_communication"
-	}
-}
+#doc_events = {
+#    "File": {
+#		"after_insert": "invoice2erpnext.invoice2erpnext.doctype.invoice2erpnext.invoice2erpnext.set_file_from_communication"
+#	}
+#}
 
 # Scheduled Tasks
 # ---------------

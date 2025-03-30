@@ -1,0 +1,79 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-03-29 06:35:05.150699",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "api_credentials_section",
+  "api_key",
+  "enabled",
+  "column_break_trjd",
+  "api_secret",
+  "section_break_kuys",
+  "vat_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Data",
+   "label": "API Key"
+  },
+  {
+   "fieldname": "api_secret",
+   "fieldtype": "Password",
+   "label": "API Secret"
+  },
+  {
+   "fieldname": "api_credentials_section",
+   "fieldtype": "Section Break",
+   "label": "API Credentials"
+  },
+  {
+   "fieldname": "column_break_trjd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_kuys",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "The account used for tax entries in ERPNext (e.g., 'VAT - ABC')",
+   "fieldname": "vat_account",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "VAT Account Head",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2025-03-29 19:35:42.674819",
+ "modified_by": "Administrator",
+ "module": "Invoice2Erpnext",
+ "name": "Invoice2Erpnext Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
