@@ -181,7 +181,7 @@ class Invoice2ErpnextLog(Document):
                     # Generate item code based on description with hash for uniqueness
                     import hashlib
                     desc_hash = hashlib.md5(description.encode()).hexdigest()[:8] if description else ""
-                    item_code = f"INV-{desc_hash}"
+                    item_code = f"I2E-{desc_hash}"
                 
                 # Get item details with standardized precision
                 amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", None))
