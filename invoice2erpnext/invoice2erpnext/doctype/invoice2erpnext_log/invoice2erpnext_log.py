@@ -321,11 +321,19 @@ class Invoice2ErpnextLog(Document):
                     original_amount = item.get("amount", 0)
                     adjusted_amount = round_amount(original_amount * adjustment_factor)
                     item["amount"] = adjusted_amount
-                    # Recalculate rate based on new amount
                     item["rate"] = round_amount(adjusted_amount / item["qty"] if item["qty"] else adjusted_amount)
+            
+                # Check if there's still a small rounding discrepancy after proportional adjustment
+                recalculated_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+                remaining_diff = round_amount(subtotal - recalculated_total)
                 
-                # Log the adjustment
-                frappe.log_error(f"Adjusted line items in invoice {bill_no}: Original total {calculated_line_total}, adjusted to {invoice_total}")
+                if abs(remaining_diff) > 0.01:  # If there's still a meaningful difference
+                    # Find the largest item to apply the final adjustment
+                    largest_item = max(invoice_items, key=lambda x: abs(x.get("amount", 0)) if invoice_items else None)
+                    if largest_item:
+                        largest_item["amount"] = round_amount(largest_item["amount"] + remaining_diff)
+                        largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"] if largest_item["qty"] else largest_item["amount"])
+                        frappe.log_error(f"Applied final rounding adjustment of {remaining_diff} to item with amount {largest_item['amount']} in invoice {bill_no}")                
             
             # Add taxes with the corrected amount
             if total_tax:
