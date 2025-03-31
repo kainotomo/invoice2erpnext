@@ -183,7 +183,7 @@ class Invoice2ErpnextLog(Document):
             # Add taxes if available
             subtotal = extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0)
             total_tax = extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0)
-            
+
             if subtotal and total_tax:
                 tax_rate = 0
                 
@@ -203,9 +203,13 @@ class Invoice2ErpnextLog(Document):
                 if tax_rate == 0 and subtotal > 0:
                     tax_rate = round((total_tax / subtotal) * 100, 2)
                 
+                # Get the VAT account from settings
+                settings = frappe.get_doc("Invoice2Erpnext Settings")
+                vat_account = settings.vat_account or "VAT - TC"  # Default fallback if not set
+                
                 purchase_invoice["taxes"] = [{
                     "charge_type": "On Net Total",
-                    "account_head": "VAT - TC",  # Replace with appropriate tax account
+                    "account_head": vat_account,
                     "description": f"VAT {tax_rate}%",
                     "rate": tax_rate
                 }]
