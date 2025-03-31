@@ -119,7 +119,7 @@ class Invoice2ErpnextLog(Document):
                 "supplier_name": vendor_name,
                 "supplier_group": "All Supplier Groups",  # Default value
                 "supplier_type": "Company",  # Default value
-                "country": vendor_address.get("countryRegion", ""),
+                "country": vendor_address.get("countryRegion", "Cyprus"),
                 "address_line1": vendor_address.get("streetAddress", ""),
                 "city": vendor_address.get("city", ""),
                 "pincode": vendor_address.get("postalCode", "")
