@@ -47,8 +47,9 @@
   },
   {
    "fieldname": "response",
-   "fieldtype": "Long Text",
+   "fieldtype": "Code",
    "label": "Response",
+   "options": "JSON",
    "read_only": 1
   },
   {
@@ -62,7 +63,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-31 11:09:46.425710",
+ "modified": "2025-03-31 16:02:34.494644",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Log",

@@ -299,39 +299,107 @@ class Invoice2ErpnextLog(Document):
             invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
             total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
             total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
-            
+
+            # Get the main invoice amount fields with their confidence scores
+            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            subtotal_confidence = extracted_doc.get("SubTotal", {}).get("confidence", 0)
+
+            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            invoice_total_confidence = extracted_doc.get("InvoiceTotal", {}).get("confidence", 0)
+
+            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
+            total_tax_confidence = extracted_doc.get("TotalTax", {}).get("confidence", 0)
+
+            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
+            total_discount_confidence = extracted_doc.get("TotalDiscount", {}).get("confidence", 0)
+
+            # Define a high confidence threshold
+            HIGH_CONFIDENCE = 0.7
+
             # Calculate expected invoice total and validate against extracted total
             expected_total = round_amount(subtotal + total_tax - total_discount)
-            if invoice_total > 0 and abs(expected_total - invoice_total) > ROUNDING_TOLERANCE:
-                if subtotal != round_amount(invoice_total - total_tax) > ROUNDING_TOLERANCE:
-                    subtotal = invoice_total  - total_tax + total_discount
-            elif expected_total > 0 and invoice_total == 0:
-                # If no invoice total was extracted but we can calculate it
-                invoice_total = expected_total
+
+            # Determine which values to trust based on confidence scores
+            if invoice_total > 0:
+                if abs(expected_total - invoice_total) > ROUNDING_TOLERANCE:
+                    # Inconsistency detected - use confidence scores to determine which is correct
+                    if invoice_total_confidence > HIGH_CONFIDENCE and subtotal_confidence < HIGH_CONFIDENCE:
+                        # Trust the invoice total and recalculate subtotal
+                        subtotal = round_amount(invoice_total - total_tax + total_discount)
+                    elif subtotal_confidence > HIGH_CONFIDENCE and total_tax_confidence > HIGH_CONFIDENCE and invoice_total_confidence < HIGH_CONFIDENCE:
+                        # Trust the subtotal and tax, recalculate invoice total
+                        invoice_total = expected_total
+                    elif invoice_total_confidence > subtotal_confidence:
+                        # If no clear high confidence winner, prefer the one with higher confidence
+                        subtotal = round_amount(invoice_total - total_tax + total_discount)
+                    else:
+                        invoice_total = expected_total
+            elif expected_total > 0:
+                # If no invoice total was extracted but we can calculate it from high confidence components
+                if subtotal_confidence > HIGH_CONFIDENCE and total_tax_confidence > HIGH_CONFIDENCE:
+                    invoice_total = expected_total
 
             # Instead of using line items total, prioritize extracted totals
             calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
             if subtotal > 0 and abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
-                # Apply proportional adjustment to all items
-                if calculated_line_total != 0:
-                    adjustment_factor = subtotal / calculated_line_total
+                # Check if there's a huge disparity (likely decimal point issues)
+                if calculated_line_total > subtotal * 10:
+                    # First identify problematic items based on their confidence and values
+                    fixed_items = False
                     
-                    # Adjust all items except the last one to maintain proportions
-                    for i in range(len(invoice_items) - 1):
-                        item = invoice_items[i]
-                        original_amount = item.get("amount", 0)
-                        adjusted_amount = round_amount(original_amount * adjustment_factor)
-                        item["amount"] = adjusted_amount
-                        item["rate"] = round_amount(adjusted_amount / item["qty"] if item["qty"] else adjusted_amount)
+                    # Get original confidence values from extracted_doc 
+                    item_confidences = {}
+                    for i, extracted_item in enumerate(extracted_doc.get("Items", {}).get("valueArray", [])):
+                        item_obj = extracted_item.get("valueObject", {})
+                        amount_confidence = item_obj.get("Amount", {}).get("confidence", 0)
+                        amount_value = item_obj.get("Amount", {}).get("valueCurrency", {}).get("amount", 0)
+                        
+                        # Store the confidence and original extracted amount for each item
+                        if i < len(invoice_items):
+                            item_confidences[i] = {
+                                "confidence": amount_confidence,
+                                "original_amount": amount_value
+                            }
                     
-                    # Calculate the adjusted total of all items except the last one
-                    adjusted_total = round_amount(sum(item.get("amount", 0) for item in invoice_items[:-1]))
+                    # Fix items with suspiciously high values
+                    for i, item in enumerate(invoice_items):
+                        if i in item_confidences:
+                            item_amount = item.get("amount", 0)
+                            original_amount = item_confidences[i].get("original_amount", 0)
+                            
+                            # If item amount is way higher than subtotal, adjust it
+                            if item_amount > subtotal * 0.9:  # If an item is more than 90% of subtotal
+                                # Check if dividing by 100 brings it to a reasonable range
+                                if abs(item_amount / 100 - original_amount / 100) < ROUNDING_TOLERANCE * 10:
+                                    item["amount"] = round_amount(item_amount / 100)
+                                    item["rate"] = round_amount(item["amount"] / item["qty"] if item["qty"] else item["amount"])
+                                    fixed_items = True
                     
-                    # Make the last item account for any difference to exactly match subtotal
-                    if invoice_items:
-                        last_item = invoice_items[-1]
-                        last_item["amount"] = round_amount(subtotal - adjusted_total)
-                        last_item["rate"] = round_amount(last_item["amount"] / last_item["qty"] if last_item["qty"] else last_item["amount"])            
+                    # If we fixed any items, recalculate the total
+                    if fixed_items:
+                        calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+                
+                # Apply standard proportional adjustment to any remaining discrepancy
+                if abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
+                    if calculated_line_total != 0:
+                        adjustment_factor = subtotal / calculated_line_total
+                        
+                        # Adjust all items except the last one to maintain proportions
+                        for i in range(len(invoice_items) - 1):
+                            item = invoice_items[i]
+                            original_amount = item.get("amount", 0)
+                            adjusted_amount = round_amount(original_amount * adjustment_factor)
+                            item["amount"] = adjusted_amount
+                            item["rate"] = round_amount(adjusted_amount / item["qty"] if item["qty"] else adjusted_amount)
+                        
+                        # Calculate the adjusted total of all items except the last one
+                        adjusted_total = round_amount(sum(item.get("amount", 0) for item in invoice_items[:-1]))
+                        
+                        # Make the last item account for any difference to exactly match subtotal
+                        if invoice_items:
+                            last_item = invoice_items[-1]
+                            last_item["amount"] = round_amount(subtotal - adjusted_total)
+                            last_item["rate"] = round_amount(last_item["amount"] / last_item["qty"] if last_item["qty"] else last_item["amount"])
             # Make sure to update the purchase_invoice with the final invoice_items list
             purchase_invoice["items"] = invoice_items
 
