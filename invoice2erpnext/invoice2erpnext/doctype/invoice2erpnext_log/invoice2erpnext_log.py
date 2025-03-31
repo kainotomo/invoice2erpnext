@@ -115,7 +115,7 @@ class Invoice2ErpnextLog(Document):
         def round_amount(amount):
             """Standardize decimal precision for monetary values"""
             if amount is None:
-                return None
+                return 0
             try:
                 return round(float(amount), 2)
             except (ValueError, TypeError):
@@ -297,30 +297,24 @@ class Invoice2ErpnextLog(Document):
             }
             
             # Check for document-level discount or markup
-            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", None))
-            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", None))
-            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", None))
-            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", None))
+            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
+            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
             
-            # Try to calculate missing values if possible
-            if invoice_total is not None:
-                # If subtotal missing but we have invoice_total and total_tax
-                if subtotal is None and total_tax is not None:
-                    subtotal = round_amount(invoice_total - total_tax)
-                
-                # If tax missing but we have invoice_total and subtotal
-                if total_tax is None and subtotal is not None:
-                    total_tax = round_amount(invoice_total - subtotal)
-                
-                # If discount missing but calculated_line_total > invoice_total (positive discount)
-                if total_discount is None and invoice_total > 0:
-                    total_discount = round_amount(subtotal - invoice_total)
+            # Calculate expected invoice total and validate against extracted total
+            expected_total = round_amount(subtotal + total_tax - total_discount)
+            if invoice_total > 0 and abs(expected_total - invoice_total) > ROUNDING_TOLERANCE:
+                subtotal = invoice_total  - total_tax + total_discount
+            elif expected_total > 0 and invoice_total == 0:
+                # If no invoice total was extracted but we can calculate it
+                invoice_total = expected_total
 
             # Instead of using line items total, prioritize extracted totals
             calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
-            if invoice_total > 0 and abs(calculated_line_total - invoice_total) > ROUNDING_TOLERANCE:
+            if subtotal > 0 and abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
                 # There's a discrepancy - adjust line items to match the invoice total
-                adjustment_factor = invoice_total / calculated_line_total if calculated_line_total != 0 else 1
+                adjustment_factor = subtotal / calculated_line_total if calculated_line_total != 0 else 1
                 
                 # Apply adjustment to all line items proportionally
                 for item in invoice_items:
@@ -332,13 +326,7 @@ class Invoice2ErpnextLog(Document):
                 
                 # Log the adjustment
                 frappe.log_error(f"Adjusted line items in invoice {bill_no}: Original total {calculated_line_total}, adjusted to {invoice_total}")
-
-            # Add discount amount if available
-            if total_discount > 0:
-                purchase_invoice["discount_amount"] = total_discount
-                # Optional: add a comment about the discount
-                purchase_invoice["discount_description"] = "Invoice discount"
-
+            
             # Add taxes with the corrected amount
             if total_tax:
                 # Get the VAT account from settings with better error handling
