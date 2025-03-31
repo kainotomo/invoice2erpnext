@@ -20,8 +20,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Pending\nError\nRetrieved\nSuccess",
-   "read_only": 1
+   "options": "Pending\nError\nRetrieved\nSuccess"
   },
   {
    "fieldname": "cost",
@@ -63,7 +62,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-30 11:26:18.591252",
+ "modified": "2025-03-31 11:09:46.425710",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Log",
