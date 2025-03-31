@@ -45,6 +45,7 @@ class Invoice2ErpnextLog(Document):
         erpnext_docs = result.get("erpnext_docs", [])
         if not erpnext_docs:
             frappe.throw("No documents to create.")
+        
         # Create each document in ERPNext
         for doc in erpnext_docs:
             doc_type = doc.get("doctype")
@@ -66,6 +67,7 @@ class Invoice2ErpnextLog(Document):
                     new_doc.set("set_posting_time", 1)
                 # Save the document
                 new_doc.insert(ignore_permissions=True)
+        
         # Update the log with the created document names
         created_docs = []
         created_purchase_invoices = []
@@ -98,7 +100,126 @@ class Invoice2ErpnextLog(Document):
 
     def _transform_extracted_doc(self, extracted_doc: Dict[str, Any]) -> Dict[str, Any]:
         """Transform generic invoice data to ERPNext format"""
-        return extracted_doc
+        # Initialize result structure
+        result = {
+            "success": True,
+            "erpnext_docs": []
+        }
+        
+        try:
+            # Get vendor information
+            vendor_name = extracted_doc.get("VendorName", {}).get("valueString", "").replace("\n", " ").strip()
+            if not vendor_name:
+                frappe.throw("Vendor name not found in extracted document")
+            
+            # 1. Create Supplier document
+            vendor_address = extracted_doc.get("VendorAddress", {}).get("valueAddress", {})
+            supplier_doc = {
+                "doctype": "Supplier",
+                "supplier_name": vendor_name,
+                "supplier_group": "All Supplier Groups",  # Default value
+                "supplier_type": "Company",  # Default value
+                "country": vendor_address.get("countryRegion", ""),
+                "address_line1": vendor_address.get("streetAddress", ""),
+                "city": vendor_address.get("city", ""),
+                "pincode": vendor_address.get("postalCode", "")
+            }
+            result["erpnext_docs"].append(supplier_doc)
+            
+            # 2. Create Item documents and prepare items for invoice
+            items = extracted_doc.get("Items", {}).get("valueArray", [])
+            invoice_items = []
+            
+            for idx, item in enumerate(items):
+                item_data = item.get("valueObject", {})
+                description = item_data.get("Description", {}).get("valueString", "")
+                
+                # Generate item code based on description
+                description_first_line = description.split("\n")[0] if description else f"Item {idx+1}"
+                item_code = f"INV-{extracted_doc.get('InvoiceId', {}).get('valueString', '')}-{idx+1}"
+                
+                amount = item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0)
+                
+                item_doc = {
+                    "doctype": "Item",
+                    "item_code": item_code,
+                    "item_name": description_first_line[:140],
+                    "description": description,
+                    "item_group": "All Item Groups",
+                    "stock_uom": "Nos",
+                    "is_stock_item": 0,  # Assuming service item
+                    "is_purchase_item": 1
+                }
+                result["erpnext_docs"].append(item_doc)
+                
+                # Prepare item for purchase invoice
+                invoice_item = {
+                    "item_code": item_code,
+                    "qty": 1,
+                    "rate": amount,
+                    "amount": amount,
+                    "description": description,
+                    "uom": "Nos"
+                }
+                invoice_items.append(invoice_item)
+            
+            # 3. Create Purchase Invoice document
+            invoice_date = extracted_doc.get("InvoiceDate", {}).get("valueDate", "")
+            currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
+            bill_no = extracted_doc.get("InvoiceId", {}).get("valueString", "")
+            
+            purchase_invoice = {
+                "doctype": "Purchase Invoice",
+                "title": f"Invoice {bill_no}",
+                "supplier": vendor_name,
+                "bill_no": bill_no,
+                "bill_date": invoice_date,
+                "posting_date": invoice_date,
+                "currency": currency,
+                "conversion_rate": 1,
+                "items": invoice_items,
+            }
+            
+            # Add taxes if available
+            subtotal = extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0)
+            total_tax = extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0)
+            
+            if subtotal and total_tax:
+                tax_rate = 0
+                
+                # Try to get the tax rate from tax details first
+                tax_details = extracted_doc.get("TaxDetails", {}).get("valueArray", [])
+                for tax in tax_details:
+                    tax_data = tax.get("valueObject", {})
+                    if "Rate" in tax_data:
+                        tax_rate_str = tax_data.get("Rate", {}).get("valueString", "0%").replace("%", "")
+                        try:
+                            tax_rate = float(tax_rate_str)
+                            break
+                        except ValueError:
+                            pass
+                
+                # If no tax rate found in details, calculate it
+                if tax_rate == 0 and subtotal > 0:
+                    tax_rate = round((total_tax / subtotal) * 100, 2)
+                
+                purchase_invoice["taxes"] = [{
+                    "charge_type": "On Net Total",
+                    "account_head": "VAT - TC",  # Replace with appropriate tax account
+                    "description": f"VAT {tax_rate}%",
+                    "rate": tax_rate
+                }]
+            
+            result["erpnext_docs"].append(purchase_invoice)
+            
+            return result
+        
+        except Exception as e:
+            frappe.log_error(f"Error transforming extracted document: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 @frappe.whitelist()
 def create_purchase_invoice_from_file(file_doc_name):
