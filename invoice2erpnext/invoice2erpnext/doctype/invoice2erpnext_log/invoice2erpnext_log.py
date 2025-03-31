@@ -301,9 +301,6 @@ class Invoice2ErpnextLog(Document):
             invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", None))
             total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", None))
             total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", None))
-
-            # Calculate line items total
-            calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
             
             # Try to calculate missing values if possible
             if invoice_total is not None:
@@ -316,10 +313,11 @@ class Invoice2ErpnextLog(Document):
                     total_tax = round_amount(invoice_total - subtotal)
                 
                 # If discount missing but calculated_line_total > invoice_total (positive discount)
-                if total_discount is None and calculated_line_total > 0 and invoice_total > 0:
+                if total_discount is None and invoice_total > 0:
                     total_discount = round_amount(subtotal - invoice_total)
 
             # Instead of using line items total, prioritize extracted totals
+            calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
             if invoice_total > 0 and abs(calculated_line_total - invoice_total) > ROUNDING_TOLERANCE:
                 # There's a discrepancy - adjust line items to match the invoice total
                 adjustment_factor = invoice_total / calculated_line_total if calculated_line_total != 0 else 1
@@ -341,9 +339,6 @@ class Invoice2ErpnextLog(Document):
                 # Optional: add a comment about the discount
                 purchase_invoice["discount_description"] = "Invoice discount"
 
-            # Use extracted subtotal directly
-            effective_subtotal = subtotal if subtotal > 0 else invoice_total - total_tax
-
             # Add taxes with the corrected amount
             if total_tax:
                 # Get the VAT account from settings with better error handling
@@ -353,56 +348,16 @@ class Invoice2ErpnextLog(Document):
                 except Exception as e:
                     frappe.log_error(f"Error fetching Invoice2Erpnext Settings: {str(e)}")
                     vat_account = "VAT - TC"
-                
-                # Use consistent tax rate from items
-                tax_rate = 0
-                tax_rate = round((total_tax / calculated_line_total) * 100, 2)
-                
-                # Check if line items total matches invoice total
-                if abs(calculated_line_total - invoice_total) < ROUNDING_TOLERANCE:
-                    # Items likely include tax already - we need to tell ERPNext this
-                    
-                    # Calculate net total (removing tax)
-                    net_total = round_amount(calculated_line_total / (1 + tax_rate/100))
-                    
-                    # For each item, adjust the rate to be exclusive of tax
-                    for item in invoice_items:
-                        # Calculate item's net amount (before tax)
-                        item_net = round_amount(item["amount"] / (1 + tax_rate/100))
-                        # Update rate to be tax-exclusive
-                        item["rate"] = round_amount(item_net / item["qty"] if item["qty"] else item_net)
-                    
-                    # Add tax info with included_in_print_rate = 0 (since we've already extracted tax)
-                    purchase_invoice["taxes"] = [{
-                        "charge_type": "On Net Total",
-                        "account_head": vat_account,
-                        "description": f"VAT {tax_rate}%",
-                        "rate": tax_rate,
-                        "included_in_print_rate": 0  # Tax is NOT included (since we extracted it)
-                    }]
-                else:
-                    # Standard case - add tax normally
-                    purchase_invoice["taxes"] = [{
-                        "charge_type": "On Net Total",
-                        "account_head": vat_account,
-                        "description": f"VAT {tax_rate}%",
-                        "rate": tax_rate
-                    }]
+
+                purchase_invoice["taxes"] = [{
+                    "charge_type": "Actual",
+                    "account_head": vat_account,
+                    "description": "VAT",
+                    "tax_amount": total_tax,
+                    "included_in_print_rate": 0  # Tax is NOT included (since we extracted it)
+                }]
             
             result["erpnext_docs"].append(purchase_invoice)
-            
-            # Final validation of invoice totals
-            if invoice_total > 0:
-                calculated_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
-                if total_tax:
-                    calculated_total = round_amount(calculated_total + total_tax)
-                if "discount_amount" in purchase_invoice:
-                    discount = purchase_invoice["discount_amount"]
-                    calculated_total = round_amount(calculated_total - discount if discount > 0 else calculated_total + abs(discount))
-                
-                # If there's more than the tolerance rounding difference
-                if abs(calculated_total - invoice_total) > ROUNDING_TOLERANCE:
-                    frappe.log_error(f"Total mismatch in invoice {bill_no}: Invoice total is {invoice_total} but calculated total is {calculated_total}")
             
             # Log document quality score
             if document_score < 80:
