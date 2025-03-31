@@ -62,8 +62,6 @@ class Invoice2ErpnextLog(Document):
                 for field, value in doc.items():
                     if field != "doctype":
                         new_doc.set(field, value)
-                if doc_type == "Purchase Invoice":
-                    new_doc.set("set_posting_time", 1)
                 # Save the document
                 new_doc.insert(ignore_permissions=True)
         
@@ -290,6 +288,7 @@ class Invoice2ErpnextLog(Document):
                 "posting_date": invoice_date,
                 "currency": currency,
                 "conversion_rate": 1,
+                "set_posting_time": 1,
                 "items": invoice_items,
                 "payment_terms_template": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else "",
             }
@@ -342,8 +341,10 @@ class Invoice2ErpnextLog(Document):
                 # If no invoice total was extracted but we can calculate it
                 invoice_total = expected_total
 
+            purchase_invoice["discount_amount"] = total_discount
+
             # Instead of using line items total, prioritize extracted totals
-            calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+            calculated_line_total = round_amount(sum(item.get("qty", 0) * item.get("rate", 0) for item in invoice_items))
             if subtotal > 0 and abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
                 # Check if there's a huge disparity (likely decimal point issues)
                 if calculated_line_total > subtotal * 10:
