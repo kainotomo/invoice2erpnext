@@ -305,7 +305,8 @@ class Invoice2ErpnextLog(Document):
             # Calculate expected invoice total and validate against extracted total
             expected_total = round_amount(subtotal + total_tax - total_discount)
             if invoice_total > 0 and abs(expected_total - invoice_total) > ROUNDING_TOLERANCE:
-                subtotal = invoice_total  - total_tax + total_discount
+                if subtotal != round_amount(invoice_total - total_tax) > ROUNDING_TOLERANCE:
+                    subtotal = invoice_total  - total_tax + total_discount
             elif expected_total > 0 and invoice_total == 0:
                 # If no invoice total was extracted but we can calculate it
                 invoice_total = expected_total
