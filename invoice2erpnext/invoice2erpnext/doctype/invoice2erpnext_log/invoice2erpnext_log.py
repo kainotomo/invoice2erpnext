@@ -56,8 +56,6 @@ class Invoice2ErpnextLog(Document):
                     continue  # Skip creation as supplier already exists
                 elif doc_type == "Item" and frappe.db.exists("Item", doc.get("item_code")):
                     continue  # Skip creation as item already exists
-                elif doc_type == "Purchase Invoice" and doc.get("bill_no") and frappe.db.exists("Purchase Invoice", {"bill_no": doc.get("bill_no")}):
-                    continue  # Skip creation as purchase invoice with this bill number already exists
 
                 # Create the document in ERPNext
                 new_doc = frappe.new_doc(doc_type)
@@ -147,7 +145,7 @@ class Invoice2ErpnextLog(Document):
                 "supplier_type": "Company",  # Default value
                 "country": vendor_address.get("countryRegion", "Cyprus"),
                 "address_line1": vendor_address.get("streetAddress", ""),
-                "city": vendor_address.get("city", ""),
+                "city": vendor_address.get("city", "Larnaka"),
                 "pincode": vendor_address.get("postalCode", ""),
                 "tax_id": vendor_tax_id  # Add the tax ID
             }
