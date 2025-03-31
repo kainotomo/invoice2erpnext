@@ -311,34 +311,35 @@ class Invoice2ErpnextLog(Document):
             subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
             invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
             total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
+            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
 
-            # Calculate line items total - this is more reliable than the extracted subtotal
+            # Calculate line items total
             calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
 
-            # Use line items total when subtotal is inconsistent
-            if abs(calculated_line_total - invoice_total) < ROUNDING_TOLERANCE:
-                # The line items total matches the invoice total, so we should trust that
-                # and ignore the extracted subtotal which is likely incorrect
-                effective_subtotal = calculated_line_total
+            # Instead of using line items total, prioritize extracted totals
+            if invoice_total > 0 and abs(calculated_line_total - invoice_total) > ROUNDING_TOLERANCE:
+                # There's a discrepancy - adjust line items to match the invoice total
+                adjustment_factor = invoice_total / calculated_line_total if calculated_line_total != 0 else 1
                 
-                # Set the adjusted tax amount if needed
-                if total_tax > 0:
-                    # Calculate the correct tax rate based on item tax rates
-                    weighted_tax_rate = 0
-                    for item_code, tax_rate in tax_rates_by_item.items():
-                        for item in invoice_items:
-                            if item.get("item_code") == item_code:
-                                weighted_tax_rate = tax_rate  # Use any consistent tax rate
-                                break
-                    
-                    # Calculate the correct tax amount based on the effective subtotal
-                    if weighted_tax_rate > 0:
-                        net_amount = round_amount(effective_subtotal / (1 + weighted_tax_rate/100))
-                        adjusted_tax = round_amount(effective_subtotal - net_amount)
-                        total_tax = adjusted_tax
-            else:
-                # Fall back to extracted subtotal
-                effective_subtotal = subtotal
+                # Apply adjustment to all line items proportionally
+                for item in invoice_items:
+                    original_amount = item.get("amount", 0)
+                    adjusted_amount = round_amount(original_amount * adjustment_factor)
+                    item["amount"] = adjusted_amount
+                    # Recalculate rate based on new amount
+                    item["rate"] = round_amount(adjusted_amount / item["qty"] if item["qty"] else adjusted_amount)
+                
+                # Log the adjustment
+                frappe.log_error(f"Adjusted line items in invoice {bill_no}: Original total {calculated_line_total}, adjusted to {invoice_total}")
+
+            # Add discount amount if available
+            if total_discount > 0:
+                purchase_invoice["discount_amount"] = total_discount
+                # Optional: add a comment about the discount
+                purchase_invoice["discount_description"] = "Invoice discount"
+
+            # Use extracted subtotal directly
+            effective_subtotal = subtotal if subtotal > 0 else invoice_total - total_tax
 
             # Add taxes with the corrected amount
             if total_tax:
