@@ -136,6 +136,8 @@ class Invoice2ErpnextLog(Document):
             
             # 1. Create Supplier document
             vendor_address = extracted_doc.get("VendorAddress", {}).get("valueAddress", {})
+            vendor_tax_id = extracted_doc.get("VendorTaxId", {}).get("valueString", "")
+
             supplier_doc = {
                 "doctype": "Supplier",
                 "supplier_name": vendor_name,
@@ -144,7 +146,8 @@ class Invoice2ErpnextLog(Document):
                 "country": vendor_address.get("countryRegion", "Cyprus"),
                 "address_line1": vendor_address.get("streetAddress", ""),
                 "city": vendor_address.get("city", ""),
-                "pincode": vendor_address.get("postalCode", "")
+                "pincode": vendor_address.get("postalCode", ""),
+                "tax_id": vendor_tax_id  # Add the tax ID
             }
             result["erpnext_docs"].append(supplier_doc)
             
@@ -299,7 +302,7 @@ class Invoice2ErpnextLog(Document):
                 "currency": currency,
                 "conversion_rate": 1,
                 "items": invoice_items,
-                "payment_terms_template": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else ""
+                "payment_terms_template": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else "",
             }
             
             # Check for document-level discount or markup
