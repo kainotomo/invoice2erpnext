@@ -352,8 +352,7 @@ class Invoice2ErpnextLog(Document):
                 
                 # Use consistent tax rate from items
                 tax_rate = 0
-                if tax_rates_by_item:
-                    tax_rate = next(iter(tax_rates_by_item.values()))
+                tax_rate = round((total_tax / calculated_line_total) * 100, 2)
                 
                 # Check if line items total matches invoice total
                 if abs(calculated_line_total - invoice_total) < ROUNDING_TOLERANCE:
