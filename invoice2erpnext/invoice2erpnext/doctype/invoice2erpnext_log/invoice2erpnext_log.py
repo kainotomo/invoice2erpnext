@@ -100,17 +100,39 @@ class Invoice2ErpnextLog(Document):
 
     def _transform_extracted_doc(self, extracted_doc: Dict[str, Any]) -> Dict[str, Any]:
         """Transform generic invoice data to ERPNext format"""
+        # Define constants
+        ROUNDING_TOLERANCE = 0.05
+        
         # Initialize result structure
         result = {
             "success": True,
             "erpnext_docs": []
         }
         
+        # Define helper function for standardizing decimal precision
+        def round_amount(amount):
+            """Standardize decimal precision for monetary values"""
+            if amount is None:
+                return 0
+            try:
+                return round(float(amount), 2)
+            except (ValueError, TypeError):
+                return 0
+        
         try:
+            # Document quality score tracking
+            document_score = 0
+            
+            bill_no = extracted_doc.get("InvoiceId", {}).get("valueString", "")
+            if bill_no:
+                document_score += 20
+            
             # Get vendor information
             vendor_name = extracted_doc.get("VendorName", {}).get("valueString", "").replace("\n", " ").strip()
             if not vendor_name:
                 frappe.throw("Vendor name not found in extracted document")
+            else:
+                document_score += 20
             
             # 1. Create Supplier document
             vendor_address = extracted_doc.get("VendorAddress", {}).get("valueAddress", {})
@@ -128,22 +150,56 @@ class Invoice2ErpnextLog(Document):
             
             # 2. Create Item documents and prepare items for invoice
             items = extracted_doc.get("Items", {}).get("valueArray", [])
+            if items:
+                document_score += 20
+                
             invoice_items = []
+            
+            # Check for currency consistency among items
+            invoice_currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
+            item_currencies = set()
+            for item in items:
+                item_currency = item.get("valueObject", {}).get("Amount", {}).get("valueCurrency", {}).get("currencyCode")
+                if item_currency:
+                    item_currencies.add(item_currency)
+            
+            if item_currencies and any(curr != invoice_currency for curr in item_currencies):
+                frappe.log_error(f"Currency mismatch: Invoice is {invoice_currency} but items have {item_currencies} in invoice {bill_no}")
+            
+            # Track tax rates by item for mixed tax handling
+            tax_rates_by_item = {}
             
             for idx, item in enumerate(items):
                 item_data = item.get("valueObject", {})
                 description = item_data.get("Description", {}).get("valueString", "")
                 
-                # Generate item code based on description
-                description_first_line = description.split("\n")[0] if description else f"Item {idx+1}"
-                item_code = f"INV-{extracted_doc.get('InvoiceId', {}).get('valueString', '')}-{idx+1}"
+                # Get product code if available, otherwise generate one
+                product_code = item_data.get("ProductCode", {}).get("valueString", "")
+                if product_code:
+                    item_code = f"{product_code}-{bill_no}"
+                else:
+                    # Generate item code based on description with hash for uniqueness
+                    import hashlib
+                    desc_hash = hashlib.md5(description.encode()).hexdigest()[:8] if description else ""
+                    item_code = f"INV-{bill_no}-{idx+1}-{desc_hash}"
                 
-                amount = item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0)
+                # Get item details with standardized precision
+                amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
+                unit_price = round_amount(item_data.get("UnitPrice", {}).get("valueCurrency", {}).get("amount", 0))
+                quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1  # Ensure quantity is never zero
+                
+                # Get tax rate for this item
+                tax_rate_str = item_data.get("TaxRate", {}).get("valueString", "0").replace("%", "")
+                try:
+                    item_tax_rate = float(tax_rate_str)
+                    tax_rates_by_item[item_code] = item_tax_rate
+                except ValueError:
+                    pass
                 
                 item_doc = {
                     "doctype": "Item",
                     "item_code": item_code,
-                    "item_name": description_first_line[:140],
+                    "item_name": description.split("\n")[0][:140] if description else f"Item {idx+1}",
                     "description": description,
                     "item_group": "All Item Groups",
                     "stock_uom": "Nos",
@@ -152,21 +208,86 @@ class Invoice2ErpnextLog(Document):
                 }
                 result["erpnext_docs"].append(item_doc)
                 
-                # Prepare item for purchase invoice
-                invoice_item = {
-                    "item_code": item_code,
-                    "qty": 1,
-                    "rate": amount,
-                    "amount": amount,
-                    "description": description,
-                    "uom": "Nos"
-                }
+                # Handle negative amounts (credits/refunds)
+                is_credit = amount < 0
+                
+                # Calculate discount or markup if any
+                if unit_price and quantity and amount:
+                    calculated_amount = round_amount(unit_price * quantity)
+                    
+                    # Handle both discount and markup scenarios
+                    if abs(calculated_amount - amount) > ROUNDING_TOLERANCE:  # Use constant for tolerance
+                        # Use the final amount to determine the effective rate
+                        invoice_item = {
+                            "item_code": item_code,
+                            "qty": abs(quantity),  # Always positive quantity
+                            "rate": amount / quantity if quantity else amount,  # Add division by zero protection
+                            "amount": amount,
+                            "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                            "uom": "Nos"
+                        }
+                    else:
+                        # No discount/markup - use unit price as is
+                        invoice_item = {
+                            "item_code": item_code,
+                            "qty": abs(quantity),  # Always positive quantity
+                            "rate": unit_price * (-1 if is_credit else 1),
+                            "amount": amount,
+                            "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                            "uom": "Nos"
+                        }
+                elif unit_price and quantity:
+                    # We have unit price and quantity but no amount
+                    calculated_amount = round_amount(unit_price * quantity)
+                    invoice_item = {
+                        "item_code": item_code,
+                        "qty": abs(quantity),
+                        "rate": unit_price * (-1 if is_credit else 1),
+                        "amount": calculated_amount * (-1 if is_credit else 1),
+                        "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                        "uom": "Nos"
+                    }
+                elif amount:
+                    # We only have the amount
+                    invoice_item = {
+                        "item_code": item_code,
+                        "qty": abs(quantity),
+                        "rate": amount / quantity if quantity else amount,  # Add division by zero protection
+                        "amount": amount,
+                        "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                        "uom": "Nos"
+                    }
+                else:
+                    # Fallback if no pricing details at all
+                    invoice_item = {
+                        "item_code": item_code,
+                        "qty": abs(quantity),
+                        "rate": 0,
+                        "amount": 0,
+                        "description": description,
+                        "uom": "Nos"
+                    }
+                    frappe.log_error(f"No pricing information for item {item_code} in invoice {bill_no}")
+    
                 invoice_items.append(invoice_item)
             
             # 3. Create Purchase Invoice document
             invoice_date = extracted_doc.get("InvoiceDate", {}).get("valueDate", "")
+            if invoice_date:
+                document_score += 20
+                
+                # Validate date format if needed
+                try:
+                    # Simple validation - just check if it's in expected YYYY-MM-DD format
+                    if len(invoice_date.split('-')) != 3:
+                        frappe.log_error(f"Invalid date format in invoice {bill_no}: {invoice_date}")
+                except:
+                    pass
+                    
             currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
-            bill_no = extracted_doc.get("InvoiceId", {}).get("valueString", "")
+            
+            # Get payment terms if available
+            payment_terms = extracted_doc.get("PaymentTerm", {}).get("valueString", "")
             
             purchase_invoice = {
                 "doctype": "Purchase Invoice",
@@ -178,43 +299,129 @@ class Invoice2ErpnextLog(Document):
                 "currency": currency,
                 "conversion_rate": 1,
                 "items": invoice_items,
+                "payment_terms_template": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else ""
             }
             
+            # Check for document-level discount or markup
+            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            if invoice_total:
+                document_score += 20
+                
+            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
+    
+            # Verify we have the minimum required data
+            if invoice_total:
+                # If we have subtotal and tax information
+                if subtotal and total_tax:
+                    # FIXED: This calculation was wrong - tax is not added to subtotal
+                    expected_total = round_amount(subtotal)  # Subtotal is the pre-tax amount
+                    if abs(expected_total + total_tax - invoice_total) > ROUNDING_TOLERANCE:
+                        adjustment_amount = invoice_total - (expected_total + total_tax)
+                        purchase_invoice["apply_discount_on"] = "Grand Total"
+                        purchase_invoice["discount_amount"] = -adjustment_amount  # Negative for markup, positive for discount
+                # If we only have invoice total but no subtotal or tax breakdown
+                elif not subtotal and not total_tax:
+                    # Calculate expected total from line items
+                    line_item_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+                    if abs(line_item_total - invoice_total) > ROUNDING_TOLERANCE:
+                        # There's a discrepancy, so apply an adjustment
+                        adjustment_amount = line_item_total - invoice_total
+                        purchase_invoice["apply_discount_on"] = "Grand Total"
+                        purchase_invoice["discount_amount"] = adjustment_amount  # Positive for discount
+            
             # Add taxes if available
-            subtotal = extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0)
-            total_tax = extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0)
-
             if subtotal and total_tax:
-                tax_rate = 0
+                # Get the VAT account from settings with better error handling
+                try:
+                    settings = frappe.get_doc("Invoice2Erpnext Settings")
+                    vat_account = settings.vat_account or "VAT - TC"  # Default fallback if not set
+                except Exception as e:
+                    frappe.log_error(f"Error fetching Invoice2Erpnext Settings: {str(e)}")
+                    vat_account = "VAT - TC"  # Default fallback
                 
-                # Try to get the tax rate from tax details first
-                tax_details = extracted_doc.get("TaxDetails", {}).get("valueArray", [])
-                for tax in tax_details:
-                    tax_data = tax.get("valueObject", {})
-                    if "Rate" in tax_data:
-                        tax_rate_str = tax_data.get("Rate", {}).get("valueString", "0%").replace("%", "")
-                        try:
-                            tax_rate = float(tax_rate_str)
-                            break
-                        except ValueError:
-                            pass
-                
-                # If no tax rate found in details, calculate it
-                if tax_rate == 0 and subtotal > 0:
-                    tax_rate = round((total_tax / subtotal) * 100, 2)
-                
-                # Get the VAT account from settings
-                settings = frappe.get_doc("Invoice2Erpnext Settings")
-                vat_account = settings.vat_account or "VAT - TC"  # Default fallback if not set
-                
-                purchase_invoice["taxes"] = [{
-                    "charge_type": "On Net Total",
-                    "account_head": vat_account,
-                    "description": f"VAT {tax_rate}%",
-                    "rate": tax_rate
-                }]
+                # Check if there are multiple tax rates and handle them properly
+                if len(set(tax_rates_by_item.values())) > 1:
+                    frappe.log_error(f"Multiple tax rates found in invoice {bill_no}: {tax_rates_by_item}")
+                    
+                    # Implementation for multiple tax rates
+                    purchase_invoice["taxes"] = []
+                    
+                    # Group items by tax rate
+                    tax_rate_groups = {}
+                    for item_code, rate in tax_rates_by_item.items():
+                        if rate not in tax_rate_groups:
+                            tax_rate_groups[rate] = []
+                        tax_rate_groups[rate].append(item_code)
+                    
+                    # Create separate tax line for each rate
+                    for rate, item_codes in tax_rate_groups.items():
+                        # Calculate total for items with this tax rate
+                        item_total = sum(item.get("amount", 0) for item in invoice_items 
+                                        if item.get("item_code") in item_codes)
+                        
+                        purchase_invoice["taxes"].append({
+                            "charge_type": "On Net Total",
+                            "account_head": vat_account,
+                            "description": f"VAT {rate}%",
+                            "rate": rate
+                        })
+                else:
+                    # Single tax rate handling
+                    tax_rate = 0
+                    
+                    # Try to get the tax rate from tax details first
+                    tax_details = extracted_doc.get("TaxDetails", {}).get("valueArray", [])
+                    for tax in tax_details:
+                        tax_data = tax.get("valueObject", {})
+                        if "Rate" in tax_data:
+                            tax_rate_str = tax_data.get("Rate", {}).get("valueString", "0%").replace("%", "")
+                            try:
+                                tax_rate = float(tax_rate_str)
+                                break
+                            except ValueError:
+                                pass
+                    
+                    # If no tax rate found in details, try getting from items
+                    if tax_rate == 0 and items:
+                        for item in items:
+                            item_data = item.get("valueObject", {})
+                            tax_rate_str = item_data.get("TaxRate", {}).get("valueString", "0").replace("%", "")
+                            try:
+                                tax_rate = float(tax_rate_str)
+                                break
+                            except ValueError:
+                                pass
+                    
+                    # If still no tax rate found, calculate it (with division by zero protection)
+                    if tax_rate == 0 and subtotal > 0:
+                        tax_rate = round((total_tax / subtotal) * 100, 2)
+                    
+                    purchase_invoice["taxes"] = [{
+                        "charge_type": "On Net Total",
+                        "account_head": vat_account,
+                        "description": f"VAT {tax_rate}%",
+                        "rate": tax_rate
+                    }]
             
             result["erpnext_docs"].append(purchase_invoice)
+            
+            # Final validation of invoice totals
+            if invoice_total > 0:
+                calculated_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+                if total_tax:
+                    calculated_total = round_amount(calculated_total + total_tax)
+                if "discount_amount" in purchase_invoice:
+                    discount = purchase_invoice["discount_amount"]
+                    calculated_total = round_amount(calculated_total - discount if discount > 0 else calculated_total + abs(discount))
+                
+                # If there's more than the tolerance rounding difference
+                if abs(calculated_total - invoice_total) > ROUNDING_TOLERANCE:
+                    frappe.log_error(f"Total mismatch in invoice {bill_no}: Invoice total is {invoice_total} but calculated total is {calculated_total}")
+            
+            # Log document quality score
+            if document_score < 80:
+                frappe.log_error(f"Low-quality document extraction (score: {document_score}/100) for invoice {bill_no}")
             
             return result
         
