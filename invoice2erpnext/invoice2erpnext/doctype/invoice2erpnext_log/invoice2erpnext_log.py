@@ -115,7 +115,7 @@ class Invoice2ErpnextLog(Document):
         def round_amount(amount):
             """Standardize decimal precision for monetary values"""
             if amount is None:
-                return 0
+                return None
             try:
                 return round(float(amount), 2)
             except (ValueError, TypeError):
@@ -171,9 +171,6 @@ class Invoice2ErpnextLog(Document):
             if item_currencies and any(curr != invoice_currency for curr in item_currencies):
                 frappe.log_error(f"Currency mismatch: Invoice is {invoice_currency} but items have {item_currencies} in invoice {bill_no}")
             
-            # Track tax rates by item for mixed tax handling
-            tax_rates_by_item = {}
-            
             for idx, item in enumerate(items):
                 item_data = item.get("valueObject", {})
                 description = item_data.get("Description", {}).get("valueString", "")
@@ -192,14 +189,6 @@ class Invoice2ErpnextLog(Document):
                 amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
                 unit_price = round_amount(item_data.get("UnitPrice", {}).get("valueCurrency", {}).get("amount", 0))
                 quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1  # Ensure quantity is never zero
-                
-                # Get tax rate for this item
-                tax_rate_str = item_data.get("TaxRate", {}).get("valueString", "0").replace("%", "")
-                try:
-                    item_tax_rate = float(tax_rate_str)
-                    tax_rates_by_item[item_code] = item_tax_rate
-                except ValueError:
-                    pass
                 
                 item_doc = {
                     "doctype": "Item",
@@ -308,13 +297,27 @@ class Invoice2ErpnextLog(Document):
             }
             
             # Check for document-level discount or markup
-            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
-            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
-            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
-            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
+            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", None))
+            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", None))
+            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", None))
+            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", None))
 
             # Calculate line items total
             calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+            
+            # Try to calculate missing values if possible
+            if invoice_total is not None:
+                # If subtotal missing but we have invoice_total and total_tax
+                if subtotal is None and total_tax is not None:
+                    subtotal = round_amount(invoice_total - total_tax)
+                
+                # If tax missing but we have invoice_total and subtotal
+                if total_tax is None and subtotal is not None:
+                    total_tax = round_amount(invoice_total - subtotal)
+                
+                # If discount missing but calculated_line_total > invoice_total (positive discount)
+                if total_discount is None and calculated_line_total > 0 and invoice_total > 0:
+                    total_discount = round_amount(subtotal - invoice_total)
 
             # Instead of using line items total, prioritize extracted totals
             if invoice_total > 0 and abs(calculated_line_total - invoice_total) > ROUNDING_TOLERANCE:
