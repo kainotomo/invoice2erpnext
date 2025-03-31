@@ -351,7 +351,7 @@ class Invoice2ErpnextLog(Document):
                     vat_account = "VAT - TC"
                 
                 # Use consistent tax rate from items
-                tax_rate = 19.0  # Default to 19% which is common in Europe
+                tax_rate = 0
                 if tax_rates_by_item:
                     tax_rate = next(iter(tax_rates_by_item.values()))
                 
