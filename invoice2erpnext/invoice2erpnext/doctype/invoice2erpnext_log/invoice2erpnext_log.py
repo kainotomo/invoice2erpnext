@@ -312,28 +312,52 @@ class Invoice2ErpnextLog(Document):
             # Instead of using line items total, prioritize extracted totals
             calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
             if subtotal > 0 and abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
-                # There's a discrepancy - adjust line items to match the invoice total
-                adjustment_factor = subtotal / calculated_line_total if calculated_line_total != 0 else 1
+                # First identify items with unusually high rates that might be errors
+                # Calculate average rate to establish a baseline
+                valid_rates = [item.get("rate", 0) for item in invoice_items if item.get("rate", 0) > 0]
+                avg_rate = sum(valid_rates) / len(valid_rates) if valid_rates else 0
                 
-                # Apply adjustment to all line items proportionally
+                # Filter out items with extremely high rates compared to average
+                valid_items = []
                 for item in invoice_items:
-                    original_amount = item.get("amount", 0)
-                    adjusted_amount = round_amount(original_amount * adjustment_factor)
-                    item["amount"] = adjusted_amount
-                    item["rate"] = round_amount(adjusted_amount / item["qty"] if item["qty"] else adjusted_amount)
-            
-                # Check if there's still a small rounding discrepancy after proportional adjustment
-                recalculated_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
-                remaining_diff = round_amount(subtotal - recalculated_total)
+                    item_rate = item.get("rate", 0)
+                    # If rate is abnormally high (more than 10x average) or higher than subtotal itself, likely an error
+                    if avg_rate > 0 and item_rate > 10 * avg_rate:
+                        continue
+                    if subtotal > 0 and item_rate > subtotal:
+                        continue
+                    valid_items.append(item)
                 
-                if abs(remaining_diff) > 0.01:  # If there's still a meaningful difference
-                    # Find the largest item to apply the final adjustment
-                    if invoice_items:
+                # Only filter if we're not removing all items and the filtering actually helps
+                if len(valid_items) > 0 and len(valid_items) < len(invoice_items):
+                    invoice_items = valid_items
+                    calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+                
+                # Now apply normal proportional adjustment to the remaining valid items
+                if subtotal > 0 and abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
+                    # Calculate adjustment factor based on remaining items
+                    adjustment_factor = subtotal / calculated_line_total if calculated_line_total != 0 else 1
+                    
+                    # Apply adjustment to all line items proportionally
+                    for item in invoice_items:
+                        original_amount = item.get("amount", 0)
+                        adjusted_amount = round_amount(original_amount * adjustment_factor)
+                        item["amount"] = adjusted_amount
+                        item["rate"] = round_amount(adjusted_amount / item["qty"] if item["qty"] else adjusted_amount)
+                    
+                    # Handle any remaining rounding discrepancy
+                    recalculated_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+                    remaining_diff = round_amount(subtotal - recalculated_total)
+                    
+                    if abs(remaining_diff) > 0.01 and invoice_items:  # If there's still a meaningful difference
+                        # Find the largest item to apply the final adjustment
                         largest_item = max(invoice_items, key=lambda x: abs(x.get("amount", 0)))
-                        if largest_item:
-                            largest_item["amount"] = round_amount(largest_item["amount"] + remaining_diff)
-                            largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"] if largest_item["qty"] else largest_item["amount"])
-
+                        largest_item["amount"] = round_amount(largest_item["amount"] + remaining_diff)
+                        largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"] if largest_item["qty"] else largest_item["amount"])
+            
+            # Make sure to update the purchase_invoice with the final invoice_items list
+            purchase_invoice["items"] = invoice_items
+            
             # Add taxes with the corrected amount
             if total_tax:
                 # Get the VAT account from settings with better error handling
