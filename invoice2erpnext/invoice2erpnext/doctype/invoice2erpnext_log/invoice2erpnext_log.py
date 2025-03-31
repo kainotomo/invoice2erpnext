@@ -307,31 +307,40 @@ class Invoice2ErpnextLog(Document):
             total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
             total_discount_confidence = extracted_doc.get("TotalDiscount", {}).get("confidence", 0)
 
-            # Define a high confidence threshold
-            HIGH_CONFIDENCE = 0.7
-
             # Calculate expected invoice total and validate against extracted total
             expected_total = round_amount(subtotal + total_tax - total_discount)
-
-            # Determine which values to trust based on confidence scores
+            
+            # Determine which values to trust based directly on confidence scores
             if invoice_total > 0:
                 if abs(expected_total - invoice_total) > ROUNDING_TOLERANCE:
-                    # Inconsistency detected - use confidence scores to determine which is correct
-                    if invoice_total_confidence > HIGH_CONFIDENCE and subtotal_confidence < HIGH_CONFIDENCE:
-                        # Trust the invoice total and recalculate subtotal
-                        subtotal = round_amount(invoice_total - total_tax + total_discount)
-                    elif subtotal_confidence > HIGH_CONFIDENCE and total_tax_confidence > HIGH_CONFIDENCE and invoice_total_confidence < HIGH_CONFIDENCE:
-                        # Trust the subtotal and tax, recalculate invoice total
+                    # Inconsistency detected - determine which field has lowest confidence
+                    
+                    # Find the field with lowest confidence
+                    confidences = {
+                        "invoice_total": invoice_total_confidence,
+                        "subtotal": subtotal_confidence,
+                        "total_tax": total_tax_confidence,
+                        "total_discount": total_discount_confidence
+                    }
+                    
+                    lowest_confidence_field = min(confidences, key=confidences.get)
+                    
+                    # Calculate the field with lowest confidence using other values
+                    if lowest_confidence_field == "invoice_total":
+                        # Recalculate invoice_total from other fields
                         invoice_total = expected_total
-                    elif invoice_total_confidence > subtotal_confidence:
-                        # If no clear high confidence winner, prefer the one with higher confidence
+                    elif lowest_confidence_field == "subtotal":
+                        # Recalculate subtotal from other fields
                         subtotal = round_amount(invoice_total - total_tax + total_discount)
-                    else:
-                        invoice_total = expected_total
+                    elif lowest_confidence_field == "total_tax":
+                        # Recalculate tax from other fields
+                        total_tax = round_amount(invoice_total - subtotal + total_discount)
+                    else:  # total_discount has lowest confidence
+                        # Recalculate discount from other fields
+                        total_discount = round_amount(subtotal + total_tax - invoice_total)
             elif expected_total > 0:
-                # If no invoice total was extracted but we can calculate it from high confidence components
-                if subtotal_confidence > HIGH_CONFIDENCE and total_tax_confidence > HIGH_CONFIDENCE:
-                    invoice_total = expected_total
+                # If no invoice total was extracted but we can calculate it
+                invoice_total = expected_total
 
             # Instead of using line items total, prioritize extracted totals
             calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
