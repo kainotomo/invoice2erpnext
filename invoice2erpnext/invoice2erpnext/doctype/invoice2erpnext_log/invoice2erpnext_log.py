@@ -294,12 +294,6 @@ class Invoice2ErpnextLog(Document):
                 "payment_terms_template": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else "",
             }
             
-            # Check for document-level discount or markup
-            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
-            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
-            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
-            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
-
             # Get the main invoice amount fields with their confidence scores
             subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
             subtotal_confidence = extracted_doc.get("SubTotal", {}).get("confidence", 0)
