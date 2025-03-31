@@ -330,12 +330,12 @@ class Invoice2ErpnextLog(Document):
                 
                 if abs(remaining_diff) > 0.01:  # If there's still a meaningful difference
                     # Find the largest item to apply the final adjustment
-                    largest_item = max(invoice_items, key=lambda x: abs(x.get("amount", 0)) if invoice_items else None)
-                    if largest_item:
-                        largest_item["amount"] = round_amount(largest_item["amount"] + remaining_diff)
-                        largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"] if largest_item["qty"] else largest_item["amount"])
-                        frappe.log_error(f"Applied final rounding adjustment of {remaining_diff} to item with amount {largest_item['amount']} in invoice {bill_no}")                
-            
+                    if invoice_items:
+                        largest_item = max(invoice_items, key=lambda x: abs(x.get("amount", 0)))
+                        if largest_item:
+                            largest_item["amount"] = round_amount(largest_item["amount"] + remaining_diff)
+                            largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"] if largest_item["qty"] else largest_item["amount"])
+
             # Add taxes with the corrected amount
             if total_tax:
                 # Get the VAT account from settings with better error handling
