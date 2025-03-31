@@ -305,98 +305,75 @@ class Invoice2ErpnextLog(Document):
             # Check for document-level discount or markup
             subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
             invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
-            if invoice_total:
-                document_score += 20
-                
             total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
-    
-            # Verify we have the minimum required data
-            if invoice_total:
-                # If we have subtotal and tax information
-                if subtotal and total_tax:
-                    # FIXED: This calculation was wrong - tax is not added to subtotal
-                    expected_total = round_amount(subtotal)  # Subtotal is the pre-tax amount
-                    if abs(expected_total + total_tax - invoice_total) > ROUNDING_TOLERANCE:
-                        adjustment_amount = invoice_total - (expected_total + total_tax)
-                        purchase_invoice["apply_discount_on"] = "Grand Total"
-                        purchase_invoice["discount_amount"] = -adjustment_amount  # Negative for markup, positive for discount
-                # If we only have invoice total but no subtotal or tax breakdown
-                elif not subtotal and not total_tax:
-                    # Calculate expected total from line items
-                    line_item_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
-                    if abs(line_item_total - invoice_total) > ROUNDING_TOLERANCE:
-                        # There's a discrepancy, so apply an adjustment
-                        adjustment_amount = line_item_total - invoice_total
-                        purchase_invoice["apply_discount_on"] = "Grand Total"
-                        purchase_invoice["discount_amount"] = adjustment_amount  # Positive for discount
-            
-            # Add taxes if available
-            if subtotal and total_tax:
+
+            # Calculate line items total - this is more reliable than the extracted subtotal
+            calculated_line_total = round_amount(sum(item.get("amount", 0) for item in invoice_items))
+
+            # Use line items total when subtotal is inconsistent
+            if abs(calculated_line_total - invoice_total) < ROUNDING_TOLERANCE:
+                # The line items total matches the invoice total, so we should trust that
+                # and ignore the extracted subtotal which is likely incorrect
+                effective_subtotal = calculated_line_total
+                
+                # Set the adjusted tax amount if needed
+                if total_tax > 0:
+                    # Calculate the correct tax rate based on item tax rates
+                    weighted_tax_rate = 0
+                    for item_code, tax_rate in tax_rates_by_item.items():
+                        for item in invoice_items:
+                            if item.get("item_code") == item_code:
+                                weighted_tax_rate = tax_rate  # Use any consistent tax rate
+                                break
+                    
+                    # Calculate the correct tax amount based on the effective subtotal
+                    if weighted_tax_rate > 0:
+                        net_amount = round_amount(effective_subtotal / (1 + weighted_tax_rate/100))
+                        adjusted_tax = round_amount(effective_subtotal - net_amount)
+                        total_tax = adjusted_tax
+            else:
+                # Fall back to extracted subtotal
+                effective_subtotal = subtotal
+
+            # Add taxes with the corrected amount
+            if total_tax:
                 # Get the VAT account from settings with better error handling
                 try:
                     settings = frappe.get_doc("Invoice2Erpnext Settings")
-                    vat_account = settings.vat_account or "VAT - TC"  # Default fallback if not set
+                    vat_account = settings.vat_account or "VAT - TC"
                 except Exception as e:
                     frappe.log_error(f"Error fetching Invoice2Erpnext Settings: {str(e)}")
-                    vat_account = "VAT - TC"  # Default fallback
+                    vat_account = "VAT - TC"
                 
-                # Check if there are multiple tax rates and handle them properly
-                if len(set(tax_rates_by_item.values())) > 1:
-                    frappe.log_error(f"Multiple tax rates found in invoice {bill_no}: {tax_rates_by_item}")
+                # Use consistent tax rate from items
+                tax_rate = 19.0  # Default to 19% which is common in Europe
+                if tax_rates_by_item:
+                    tax_rate = next(iter(tax_rates_by_item.values()))
+                
+                # Check if line items total matches invoice total
+                if abs(calculated_line_total - invoice_total) < ROUNDING_TOLERANCE:
+                    # Items likely include tax already - we need to tell ERPNext this
                     
-                    # Implementation for multiple tax rates
-                    purchase_invoice["taxes"] = []
+                    # Calculate net total (removing tax)
+                    net_total = round_amount(calculated_line_total / (1 + tax_rate/100))
                     
-                    # Group items by tax rate
-                    tax_rate_groups = {}
-                    for item_code, rate in tax_rates_by_item.items():
-                        if rate not in tax_rate_groups:
-                            tax_rate_groups[rate] = []
-                        tax_rate_groups[rate].append(item_code)
+                    # For each item, adjust the rate to be exclusive of tax
+                    for item in invoice_items:
+                        # Calculate item's net amount (before tax)
+                        item_net = round_amount(item["amount"] / (1 + tax_rate/100))
+                        # Update rate to be tax-exclusive
+                        item["rate"] = round_amount(item_net / item["qty"] if item["qty"] else item_net)
                     
-                    # Create separate tax line for each rate
-                    for rate, item_codes in tax_rate_groups.items():
-                        # Calculate total for items with this tax rate
-                        item_total = sum(item.get("amount", 0) for item in invoice_items 
-                                        if item.get("item_code") in item_codes)
-                        
-                        purchase_invoice["taxes"].append({
-                            "charge_type": "On Net Total",
-                            "account_head": vat_account,
-                            "description": f"VAT {rate}%",
-                            "rate": rate
-                        })
+                    # Add tax info with included_in_print_rate = 0 (since we've already extracted tax)
+                    purchase_invoice["taxes"] = [{
+                        "charge_type": "On Net Total",
+                        "account_head": vat_account,
+                        "description": f"VAT {tax_rate}%",
+                        "rate": tax_rate,
+                        "included_in_print_rate": 0  # Tax is NOT included (since we extracted it)
+                    }]
                 else:
-                    # Single tax rate handling
-                    tax_rate = 0
-                    
-                    # Try to get the tax rate from tax details first
-                    tax_details = extracted_doc.get("TaxDetails", {}).get("valueArray", [])
-                    for tax in tax_details:
-                        tax_data = tax.get("valueObject", {})
-                        if "Rate" in tax_data:
-                            tax_rate_str = tax_data.get("Rate", {}).get("valueString", "0%").replace("%", "")
-                            try:
-                                tax_rate = float(tax_rate_str)
-                                break
-                            except ValueError:
-                                pass
-                    
-                    # If no tax rate found in details, try getting from items
-                    if tax_rate == 0 and items:
-                        for item in items:
-                            item_data = item.get("valueObject", {})
-                            tax_rate_str = item_data.get("TaxRate", {}).get("valueString", "0").replace("%", "")
-                            try:
-                                tax_rate = float(tax_rate_str)
-                                break
-                            except ValueError:
-                                pass
-                    
-                    # If still no tax rate found, calculate it (with division by zero protection)
-                    if tax_rate == 0 and subtotal > 0:
-                        tax_rate = round((total_tax / subtotal) * 100, 2)
-                    
+                    # Standard case - add tax normally
                     purchase_invoice["taxes"] = [{
                         "charge_type": "On Net Total",
                         "account_head": vat_account,
