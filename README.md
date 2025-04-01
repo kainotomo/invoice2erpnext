@@ -13,8 +13,50 @@ Before using Invoice2Erpnext, ensure:
 1. You've installed the Invoice2Erpnext app in your ERPNext instance
 2. Your administrator has configured the "Invoice2Erpnext Settings" with:
    - API credentials (api_key and api_secret)
-   - BASE_URL for the document extraction service
    - Default VAT account
+
+### Installation
+
+To install Invoice2Erpnext:
+
+1. Navigate to your bench directory:
+   ```
+   cd /path/to/frappe-bench
+   ```
+
+2. Get the app:
+   ```
+   bench get-app invoice2erpnext https://github.com/organization/invoice2erpnext
+   ```
+
+3. Install the app on your site:
+   ```
+   bench --site your-site.com install-app invoice2erpnext
+   ```
+
+4. Run migrations to update the database:
+   ```
+   bench --site your-site.com migrate
+   ```
+
+5. Restart your server:
+   ```
+   bench restart
+   ```
+
+### Configuration
+
+To configure Invoice2Erpnext:
+
+1. Log in to your ERPNext site with Administrator privileges
+2. Navigate to **Invoice2Erpnext Settings** in the menu
+3. Configure the following required settings:
+   - **API Credentials**: Enter your api_key and api_secret obtained from the invoice processing service
+   - **Default VAT Account**: Select the account to be used for tax calculations
+
+4. Save the settings
+
+These configurations are essential for the app to function properly. Without valid API credentials, the system won't be able to process invoices.
 
 ## How to Use
 
