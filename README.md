@@ -23,14 +23,17 @@ Before using Invoice2Erpnext, ensure:
 To process invoices with Invoice2Erpnext:
 
 1. Navigate to the **Purchase Invoice** list view
+![Alt text](documentation/prc-1.jpeg?raw=true "Purchase Invoice list view")
 2. Click the "Upload" button in the list view
 3. Select the invoice files you want to process
+![Alt text](documentation/prc-2.jpeg?raw=true "Upload")
 4. The system will:
    - Process each file automatically
    - Create Purchase Invoices in draft status
    - Generate Logs with the result
 
 Once processed, you can review and submit the created Purchase Invoices after verifying their accuracy.
+![Alt text](documentation/prc-3.jpeg?raw=true "Purchase Invoice list view")
 
 ## Understanding the Process
 
