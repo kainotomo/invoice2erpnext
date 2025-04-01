@@ -377,7 +377,7 @@ class Invoice2ErpnextLog(Document):
                                 # Check if dividing by 100 brings it to a reasonable range
                                 if abs(item_amount / 100 - original_amount / 100) < ROUNDING_TOLERANCE * 10:
                                     item["amount"] = round_amount(item_amount / 100)
-                                    item["rate"] = item["amount"] / item["qty"] if item["qty"] else item["amount"]
+                                    item["rate"] = round_amount(item["amount"] / item["qty"] if item["qty"] else item["amount"])
                                     fixed_items = True
                     
                     # If we fixed any items, recalculate the total
@@ -393,13 +393,13 @@ class Invoice2ErpnextLog(Document):
                         for i in range(len(invoice_items)):
                             item = invoice_items[i]
                             original_rate = item.get("rate", 0)
-                            adjusted_rate = original_rate * adjustment_factor
+                            adjusted_rate = round_amount(original_rate * adjustment_factor)
                             item["rate"] = adjusted_rate
                             item["amount"] = round_amount(adjusted_rate * item.get("qty", 1))
                         
                         # Check if we still have a discrepancy after adjustment
                         final_total = round_amount(sum(item.get("qty", 0) * item.get("rate", 0) for item in invoice_items))
-                        if abs(final_total - subtotal) > 0.01:  # If still off by more than a penny
+                        if abs(final_total - subtotal) > 0:
                             # Adjust the largest item to absorb the difference
                             largest_item_idx = max(range(len(invoice_items)), 
                                                   key=lambda i: abs(invoice_items[i].get("amount", 0)))
