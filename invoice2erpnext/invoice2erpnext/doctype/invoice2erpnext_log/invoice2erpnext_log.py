@@ -34,17 +34,20 @@ class Invoice2ErpnextLog(Document):
             frappe.throw("Invalid message structure in message field.")
         
         self.cost = message["cost"]
+
+        if not isinstance(message, dict) or "extracted_doc" not in message:
+            frappe.throw("Invalid message structure in extracted_doc field.")
+        extracted_doc = json.loads(message["extracted_doc"])
+        result = self._transform_extracted_doc(extracted_doc)
         
-        if not isinstance(message, dict) or "extracted_data" not in message:
-            frappe.throw("Invalid message structure in extracted_data field.")
-        extracted_data = json.loads(message["extracted_data"])
-        result = self._transform_purchase_invoice(extracted_data)
         if not result.get("success"):
             frappe.throw("Transformation failed.")
         erpnext_docs = result.get("erpnext_docs", [])
         if not erpnext_docs:
             frappe.throw("No documents to create.")
+        
         # Create each document in ERPNext
+        new_doc = None
         for doc in erpnext_docs:
             doc_type = doc.get("doctype")
             if doc_type:
@@ -53,162 +56,412 @@ class Invoice2ErpnextLog(Document):
                     continue  # Skip creation as supplier already exists
                 elif doc_type == "Item" and frappe.db.exists("Item", doc.get("item_code")):
                     continue  # Skip creation as item already exists
-                elif doc_type == "Purchase Invoice" and doc.get("bill_no") and frappe.db.exists("Purchase Invoice", {"bill_no": doc.get("bill_no")}):
-                    continue  # Skip creation as purchase invoice with this bill number already exists
 
                 # Create the document in ERPNext
                 new_doc = frappe.new_doc(doc_type)
                 for field, value in doc.items():
                     if field != "doctype":
                         new_doc.set(field, value)
-                if doc_type == "Purchase Invoice":
-                    new_doc.set("set_posting_time", 1)
                 # Save the document
                 new_doc.insert(ignore_permissions=True)
+        
         # Update the log with the created document names
-        created_docs = []
-        created_purchase_invoices = []
-        for doc in erpnext_docs:
-            doc_type = doc.get("doctype")
-            if doc_type == "Purchase Invoice":
-                # Get the name of the created Purchase Invoice
-                invoice_name = new_doc.name
-                created_docs.append(doc.get("title"))
-                created_purchase_invoices.append(invoice_name)
+        if new_doc:
+            created_docs = []
+            created_purchase_invoices = []
+            for doc in erpnext_docs:
+                doc_type = doc.get("doctype")
+                if doc_type == "Purchase Invoice":
+                    # Get the name of the created Purchase Invoice
+                    invoice_name = new_doc.name
+                    created_docs.append(doc.get("title"))
+                    created_purchase_invoices.append(invoice_name)
         
-        if created_docs:
-            self.created_docs = ", ".join(created_docs)
-        
-        # Modify the original file to link it to the Purchase Invoice
-        if created_purchase_invoices and self.file:
-            try:
-                file_doc = frappe.get_doc("File", self.file)
-                if file_doc:
-                    # Update the file to be attached to the Purchase Invoice
-                    file_doc.attached_to_doctype = "Purchase Invoice"
-                    file_doc.attached_to_name = created_purchase_invoices[0]  # Attach to the first invoice
-                    file_doc.save(ignore_permissions=True)
-            except Exception as e:
-                frappe.log_error(f"Error attaching file to Purchase Invoice: {str(e)}")
+            if created_docs:
+                self.created_docs = ", ".join(created_docs)
+            
+            # Modify the original file to link it to the Purchase Invoice
+            if created_purchase_invoices and self.file:
+                try:
+                    file_doc = frappe.get_doc("File", self.file)
+                    if file_doc:
+                        # Update the file to be attached to the Purchase Invoice
+                        file_doc.attached_to_doctype = "Purchase Invoice"
+                        file_doc.attached_to_name = created_purchase_invoices[0]  # Attach to the first invoice
+                        file_doc.save(ignore_permissions=True)
+                except Exception as e:
+                    frappe.log_error(f"Error attaching file to Purchase Invoice: {str(e)}")
 
         # Update the status to "Completed"
         self.status = "Success"
         self.save()
 
-    def _transform_purchase_invoice(self, extracted_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform generic invoice data to ERPNext Purchase Invoice format"""
-        # Create ERPNext-specific document structure
-        erpnext_docs = []
+    def _transform_extracted_doc(self, extracted_doc: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform generic invoice data to ERPNext format"""
+        # Define constants
+        ROUNDING_TOLERANCE = 0.05
         
-        # Create a Supplier doc if supplier information is available
-        if extracted_data.get("supplier_name"):
+        # Initialize result structure
+        result = {
+            "success": True,
+            "erpnext_docs": []
+        }
+        
+        # Define helper function for standardizing decimal precision
+        def round_amount(amount):
+            """Standardize decimal precision for monetary values"""
+            if amount is None:
+                return None
+            try:
+                return round(float(amount), 2)
+            except (ValueError, TypeError):
+                return 0
+        
+        try:
+            # Document quality score tracking
+            document_score = 0
+            
+            bill_no = extracted_doc.get("InvoiceId", {}).get("valueString", "")
+            if bill_no:
+                document_score += 20
+            
+            # Get vendor information
+            vendor_name = extracted_doc.get("VendorName", {}).get("valueString", "").replace("\n", " ").strip()
+            if not vendor_name:
+                frappe.throw("Vendor name not found in extracted document")
+            else:
+                document_score += 20
+            
+            # 1. Create Supplier document
+            vendor_address = extracted_doc.get("VendorAddress", {}).get("valueAddress", {})
+            vendor_tax_id = extracted_doc.get("VendorTaxId", {}).get("valueString", "")
+
             supplier_doc = {
                 "doctype": "Supplier",
-                "supplier_name": extracted_data.get("supplier_name"),
-                "supplier_type": "Company",  # Default value
+                "supplier_name": vendor_name,
                 "supplier_group": "All Supplier Groups",  # Default value
+                "supplier_type": "Company",  # Default value
+                "country": vendor_address.get("countryRegion", "Cyprus"),
+                "address_line1": vendor_address.get("streetAddress", ""),
+                "city": vendor_address.get("city", "Larnaka"),
+                "pincode": vendor_address.get("postalCode", ""),
+                "tax_id": vendor_tax_id  # Add the tax ID
             }
+            result["erpnext_docs"].append(supplier_doc)
             
-            # Add email if available
-            if extracted_data.get("supplier_email"):
-                supplier_doc["email_id"] = extracted_data.get("supplier_email")
+            # 2. Create Item documents and prepare items for invoice
+            items = extracted_doc.get("Items", {}).get("valueArray", [])
+            if items:
+                document_score += 20
                 
-            # Add phone if available  
-            if extracted_data.get("supplier_phone"):
-                supplier_doc["mobile_no"] = extracted_data.get("supplier_phone")
+            invoice_items = []
+            
+            # Check for currency consistency among items
+            invoice_currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
+            item_currencies = set()
+            for item in items:
+                item_currency = item.get("valueObject", {}).get("Amount", {}).get("valueCurrency", {}).get("currencyCode")
+                if item_currency:
+                    item_currencies.add(item_currency)
+            
+            if item_currencies and any(curr != invoice_currency for curr in item_currencies):
+                frappe.log_error(f"Currency mismatch: Invoice is {invoice_currency} but items have {item_currencies} in invoice {bill_no}")
+            
+            for idx, item in enumerate(items):
+                item_data = item.get("valueObject", {})
+                description = item_data.get("Description", {}).get("valueString", "")
                 
-            erpnext_docs.append(supplier_doc)
-        
-        # Create Item docs for each line item
-        actual_items = []
-        items = extracted_data.get("items", [])
-        for item in items:
-            # Skip special entries like totals or payment methods
-            if item.get("description") and not any(keyword in item.get("description", "").lower() 
-                                                  for keyword in ["total", "credit card", "payment"]):
+                # Get product code if available, otherwise generate one
+                product_code = item_data.get("ProductCode", {}).get("valueString", "")
+                if product_code:
+                    item_code = f"{product_code}"
+                else:
+                    # Generate item code based on description with hash for uniqueness
+                    import hashlib
+                    desc_hash = hashlib.md5(description.encode()).hexdigest()[:8] if description else ""
+                    item_code = f"I2E-{desc_hash}"
+                
+                # Get item details with standardized precision
+                amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
+                unit_price = round_amount(item_data.get("UnitPrice", {}).get("valueCurrency", {}).get("amount", 0))
+                quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1  # Ensure quantity is never zero
+                
                 item_doc = {
                     "doctype": "Item",
-                    "item_name": item.get("description")[:140],
-                    "item_code": item.get("item_code") or item.get("description")[:140],
-                    "item_group": "All Item Groups",  # Default value
-                    "stock_uom": "Nos",  # Default value
-                    "is_stock_item": 0,
+                    "item_code": item_code,
+                    "item_name": description.split("\n")[0][:140] if description else f"Item {idx+1}",
+                    "description": description,
+                    "item_group": "All Item Groups",
+                    "stock_uom": "Nos",
+                    "is_stock_item": 0,  # Assuming service item
                     "is_purchase_item": 1
                 }
-                erpnext_docs.append(item_doc)
-                actual_items.append(item)
-        
-        # Create Purchase Invoice doc
-        invoice_doc = {
-            "doctype": "Purchase Invoice",
-            "title": extracted_data.get("supplier_name", "Unknown"),
-            "supplier": extracted_data.get("supplier_name"),
-            "posting_date": extracted_data.get("invoice_date") or extracted_data.get("due_date"),
-            "bill_no": extracted_data.get("invoice_number"),
-            "due_date": extracted_data.get("due_date"),
-            "items": [],
-            "taxes": []
-        }
-        
-        # Set currency if available
-        if extracted_data.get("currency"):
-            invoice_doc["currency"] = extracted_data.get("currency")
-        
-        # Add items to the invoice (only actual product items)
-        for item in actual_items:
-            invoice_item = {
-                "item_code": item.get("item_code") or item.get("description"),
-                "item_name": item.get("description")[:140],
-                "description": item.get("description"),
-                "qty": item.get("quantity", 1),
-                "rate": item.get("unit_price", 0),
-                "amount": item.get("amount", 0)
-            }
-            invoice_doc["items"].append(invoice_item)
-        
-        # Add tax information if available
-        if extracted_data.get("tax_amount"):
-            # Get the VAT account from settings or use a default value
-            vat_account = frappe.db.get_value("Invoice2Erpnext Settings", None, "vat_account") or "VAT - XXX"
-            
-            tax_row = {
-                "doctype": "Purchase Taxes and Charges",
-                "charge_type": "Actual",
-                "account_head": vat_account,
-                "description": "Tax",
-                "tax_amount": extracted_data.get("tax_amount", 0),
-                "category": "Total",
-                "add_deduct_tax": "Add"
-            }
-            invoice_doc["taxes"].append(tax_row)
-        
-        # Set total amounts
-        if extracted_data.get("subtotal"):
-            invoice_doc["net_total"] = extracted_data.get("subtotal")
-        
-        if extracted_data.get("total_amount"):
-            invoice_doc["grand_total"] = extracted_data.get("total_amount")
-            invoice_doc["rounded_total"] = extracted_data.get("total_amount")
+                result["erpnext_docs"].append(item_doc)
                 
-        erpnext_docs.append(invoice_doc)
+                # Handle negative amounts (credits/refunds)
+                is_credit = amount < 0
+                
+                # Calculate discount or markup if any
+                if unit_price and quantity and amount:
+                    calculated_amount = round_amount(unit_price * quantity)
+                    
+                    # Handle both discount and markup scenarios
+                    if abs(calculated_amount - amount) > ROUNDING_TOLERANCE:  # Use constant for tolerance
+                        # Use the final amount to determine the effective rate
+                        invoice_item = {
+                            "item_code": item_code,
+                            "qty": abs(quantity),  # Always positive quantity
+                            "rate": amount / quantity if quantity else amount,  # Add division by zero protection
+                            "amount": amount,
+                            "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                            "uom": "Nos"
+                        }
+                    else:
+                        # No discount/markup - use unit price as is
+                        invoice_item = {
+                            "item_code": item_code,
+                            "qty": abs(quantity),  # Always positive quantity
+                            "rate": unit_price * (-1 if is_credit else 1),
+                            "amount": amount,
+                            "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                            "uom": "Nos"
+                        }
+                elif unit_price and quantity:
+                    # We have unit price and quantity but no amount
+                    calculated_amount = round_amount(unit_price * quantity)
+                    invoice_item = {
+                        "item_code": item_code,
+                        "qty": abs(quantity),
+                        "rate": unit_price * (-1 if is_credit else 1),
+                        "amount": calculated_amount * (-1 if is_credit else 1),
+                        "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                        "uom": "Nos"
+                    }
+                elif amount:
+                    # We only have the amount
+                    invoice_item = {
+                        "item_code": item_code,
+                        "qty": abs(quantity),
+                        "rate": amount / quantity if quantity else amount,  # Add division by zero protection
+                        "amount": amount,
+                        "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                        "uom": "Nos"
+                    }
+                else:
+                    # Fallback if no pricing details at all
+                    invoice_item = {
+                        "item_code": item_code,
+                        "qty": abs(quantity),
+                        "rate": 0,
+                        "amount": 0,
+                        "description": description,
+                        "uom": "Nos"
+                    }
+                    frappe.log_error(f"No pricing information for item {item_code} in invoice {bill_no}")
+    
+                invoice_items.append(invoice_item)
+            
+            # 3. Create Purchase Invoice document
+            invoice_date = extracted_doc.get("InvoiceDate", {}).get("valueDate", "")
+            invoice_date = validate_and_fix_date(invoice_date, bill_no)
+            if invoice_date:
+                document_score += 20
+                
+                # Validate date format if needed
+                try:
+                    # Simple validation - just check if it's in expected YYYY-MM-DD format
+                    if len(invoice_date.split('-')) != 3:
+                        frappe.log_error(f"Invalid date format in invoice {bill_no}: {invoice_date}")
+                except:
+                    pass
+                    
+            currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
+            
+            # Get payment terms if available
+            payment_terms = extracted_doc.get("PaymentTerm", {}).get("valueString", "")
+            
+            purchase_invoice = {
+                "doctype": "Purchase Invoice",
+                "title": f"Invoice {bill_no}",
+                "supplier": vendor_name,
+                "bill_no": bill_no,
+                "bill_date": invoice_date,
+                "posting_date": invoice_date,
+                "currency": currency,
+                "conversion_rate": 1,
+                "set_posting_time": 1,
+                "items": invoice_items,
+                "payment_terms_template": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else "",
+            }
+            
+            # Get the main invoice amount fields with their confidence scores
+            subtotal = round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            subtotal_confidence = extracted_doc.get("SubTotal", {}).get("confidence", 0)
 
-        # Define doctype priorities - lower number = higher priority
-        doctype_priority = {
-            "Supplier": 1,
-            "Item": 2,
-            "Purchase Invoice": 3,
-        }
+            invoice_total = round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
+            invoice_total_confidence = extracted_doc.get("InvoiceTotal", {}).get("confidence", 0)
+
+            total_tax = round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
+            total_tax_confidence = extracted_doc.get("TotalTax", {}).get("confidence", 0)
+
+            total_discount = round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
+            total_discount_confidence = extracted_doc.get("TotalDiscount", {}).get("confidence", 0)
+
+            # Calculate expected invoice total and validate against extracted total
+            expected_total = round_amount(subtotal + total_tax - total_discount)
+            
+            # Determine which values to trust based directly on confidence scores
+            if invoice_total > 0:
+                if abs(expected_total - invoice_total) > ROUNDING_TOLERANCE:
+                    # Inconsistency detected - determine which field has lowest confidence
+                    
+                    # Find the field with lowest confidence
+                    confidences = {
+                        "invoice_total": invoice_total_confidence,
+                        "subtotal": subtotal_confidence,
+                        "total_tax": total_tax_confidence,
+                        "total_discount": total_discount_confidence
+                    }
+                    
+                    lowest_confidence_field = min(confidences, key=confidences.get)
+                    
+                    # Calculate the field with lowest confidence using other values
+                    if lowest_confidence_field == "invoice_total":
+                        # Recalculate invoice_total from other fields
+                        invoice_total = expected_total
+                    elif lowest_confidence_field == "subtotal":
+                        # Recalculate subtotal from other fields
+                        subtotal = round_amount(invoice_total - total_tax + total_discount)
+                    elif lowest_confidence_field == "total_tax":
+                        # Recalculate tax from other fields
+                        total_tax = round_amount(invoice_total - subtotal + total_discount)
+                    else:  # total_discount has lowest confidence
+                        # Recalculate discount from other fields
+                        total_discount = round_amount(subtotal + total_tax - invoice_total)
+            elif expected_total > 0:
+                # If no invoice total was extracted but we can calculate it
+                invoice_total = expected_total
+
+            purchase_invoice["discount_amount"] = total_discount
+
+            # Instead of using line items total, prioritize extracted totals
+            calculated_line_total = round_amount(sum(item.get("qty", 0) * item.get("rate", 0) for item in invoice_items))
+            if subtotal > 0 and abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
+                # Check if there's a huge disparity (likely decimal point issues)
+                if calculated_line_total > subtotal * 10:
+                    # First identify problematic items based on their confidence and values
+                    fixed_items = False
+                    
+                    # Get original confidence values from extracted_doc 
+                    item_confidences = {}
+                    for i, extracted_item in enumerate(extracted_doc.get("Items", {}).get("valueArray", [])):
+                        item_obj = extracted_item.get("valueObject", {})
+                        amount_confidence = item_obj.get("Amount", {}).get("confidence", 0)
+                        amount_value = item_obj.get("Amount", {}).get("valueCurrency", {}).get("amount", 0)
+                        
+                        # Store the confidence and original extracted amount for each item
+                        if i < len(invoice_items):
+                            item_confidences[i] = {
+                                "confidence": amount_confidence,
+                                "original_amount": amount_value
+                            }
+                    
+                    # Fix items with suspiciously high values
+                    for i, item in enumerate(invoice_items):
+                        if i in item_confidences:
+                            item_amount = item.get("amount", 0)
+                            original_amount = item_confidences[i].get("original_amount", 0)
+                            
+                            # If item amount is way higher than subtotal, adjust it
+                            if item_amount > subtotal * 0.9:  # If an item is more than 90% of subtotal
+                                # Check if dividing by 100 brings it to a reasonable range
+                                if abs(item_amount / 100 - original_amount / 100) < ROUNDING_TOLERANCE * 10:
+                                    item["amount"] = round_amount(item_amount / 100)
+                                    item["rate"] = round_amount(item["amount"] / item["qty"] if item["qty"] else item["amount"])
+                                    fixed_items = True
+                    
+                    # If we fixed any items, recalculate the total
+                    if fixed_items:
+                        calculated_line_total = round_amount(sum(item.get("qty", 0) * item.get("rate", 0) for item in invoice_items))
+                
+                # Apply standard proportional adjustment to any remaining discrepancy
+                if abs(calculated_line_total - subtotal) > ROUNDING_TOLERANCE:
+                    if calculated_line_total != 0:
+                        adjustment_factor = subtotal / calculated_line_total
+                        
+                        # Apply adjustment factor to ALL items' rates first
+                        for i in range(len(invoice_items)):
+                            item = invoice_items[i]
+                            original_rate = item.get("rate", 0)
+                            adjusted_rate = round_amount(original_rate * adjustment_factor)
+                            item["rate"] = adjusted_rate
+                            item["amount"] = round_amount(adjusted_rate * item.get("qty", 1))
+                        
+                        # Check if we still have a discrepancy after adjustment
+                        final_total = round_amount(sum(item.get("qty", 0) * item.get("rate", 0) for item in invoice_items))
+                        if abs(final_total - subtotal) > 0:
+                            # Adjust the largest item to absorb the difference
+                            largest_item_idx = max(range(len(invoice_items)), 
+                                                  key=lambda i: abs(invoice_items[i].get("amount", 0)))
+                            
+                            # Adjust the amount directly for the largest item
+                            final_total_difference = subtotal - final_total
+                            invoice_items[largest_item_idx]["amount"] = round_amount(invoice_items[largest_item_idx]["amount"] + final_total_difference)
+                            
+                            # Recalculate rate based on the adjusted amount
+                            largest_item = invoice_items[largest_item_idx]
+                            if largest_item.get("qty", 0):
+                                largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"])
+
+                                # Recalculate rate based on the adjusted amount
+                                largest_item = invoice_items[largest_item_idx]
+                                if largest_item.get("qty", 0):
+                                    largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"])
+                                
+                        # Final verification to ensure total exactly matches subtotal
+                        final_verify_total = round_amount(sum(item.get("qty", 0) * item.get("rate", 0) for item in invoice_items))
+                        if abs(final_verify_total - subtotal) > 0:
+                            # If still not matching, adjust rate one more time
+                            final_diff = subtotal - final_verify_total
+                            largest_item["rate"] = round_amount((largest_item["rate"] * largest_item.get("qty", 1)) + final_diff )
+                            largest_item["qty"] = 1
+                            largest_item["amount"] = largest_item["rate"]
+            
+            # Make sure to update the purchase_invoice with the final invoice_items list
+            purchase_invoice["items"] = invoice_items
+
+            # Add taxes with the corrected amount
+            if total_tax:
+                # Get the VAT account from settings with better error handling
+                try:
+                    settings = frappe.get_doc("Invoice2Erpnext Settings")
+                    vat_account = settings.vat_account or "VAT - TC"
+                except Exception as e:
+                    frappe.log_error(f"Error fetching Invoice2Erpnext Settings: {str(e)}")
+                    vat_account = "VAT - TC"
+
+                purchase_invoice["taxes"] = [{
+                    "charge_type": "Actual",
+                    "account_head": vat_account,
+                    "description": "VAT",
+                    "tax_amount": total_tax,
+                    "included_in_print_rate": 0  # Tax is NOT included (since we extracted it)
+                }]
+            
+            result["erpnext_docs"].append(purchase_invoice)
+            
+            # Log document quality score
+            if document_score < 80:
+                frappe.log_error(f"Low-quality document extraction (score: {document_score}/100) for invoice {bill_no}")
+            
+            return result
         
-        # Sort items by doctype priority to ensure dependencies are created first
-        # Items consistently have a nested "doc" structure in the new format
-        sorted_items = sorted(erpnext_docs, key=lambda x: doctype_priority.get(
-            x.get("doctype", ""), 999
-        ))
-        
-        return {
-            "success": True,
-            "erpnext_docs": sorted_items
-        }
+        except Exception as e:
+            frappe.log_error(f"Error transforming extracted document: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 @frappe.whitelist()
 def create_purchase_invoice_from_file(file_doc_name):
@@ -311,3 +564,62 @@ def create_purchase_invoice_from_file(file_doc_name):
     
     doc.save()
     return doc.name
+
+def validate_and_fix_date(date_string, reference_id=""):
+    """
+    Validates and fixes a date string to YYYY-MM-DD format.
+    If validation fails, returns today's date.
+    
+    Args:
+        date_string: The date string to validate/fix
+        reference_id: Optional reference ID for logging (e.g., invoice number)
+        
+    Returns:
+        string: YYYY-MM-DD formatted date
+    """
+    if not date_string:
+        frappe.log_error(f"Date missing in document {reference_id}, using today's date")
+        return frappe.utils.today()
+    
+    # Check if it's already in expected YYYY-MM-DD format
+    if len(date_string.split('-')) == 3:
+        try:
+            # Verify it's actually a valid date
+            from datetime import datetime
+            datetime.strptime(date_string, '%Y-%m-%d')
+            return date_string
+        except ValueError:
+            pass  # Fall through to the parsing logic below
+    
+    # Try to parse and fix common date formats
+    try:
+        from datetime import datetime
+        
+        # Try different date formats (day/month/year, month/day/year, etc.)
+        possible_formats = [
+            '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d',
+            '%d-%m-%Y', '%m-%d-%Y', '%Y-%m-%d',
+            '%d.%m.%Y', '%m.%d.%Y', '%Y.%m.%d',
+            '%d %b %Y', '%b %d %Y', '%d %B %Y', '%B %d %Y'
+        ]
+        
+        parsed_date = None
+        for date_format in possible_formats:
+            try:
+                parsed_date = datetime.strptime(date_string, date_format)
+                break
+            except ValueError:
+                continue
+        
+        if parsed_date:
+            # Convert to YYYY-MM-DD format
+            fixed_date = parsed_date.strftime('%Y-%m-%d')
+            frappe.log_error(f"Fixed invalid date format in document {reference_id}: {date_string} → {fixed_date}")
+            return fixed_date
+        else:
+            # If we couldn't parse the date, use today's date as fallback
+            frappe.log_error(f"Couldn't parse date in document {reference_id}: {date_string}, using today's date instead")
+            return frappe.utils.today()
+    except Exception as e:
+        frappe.log_error(f"Error processing date in document {reference_id}: {str(e)}, using today's date")
+        return frappe.utils.today()
