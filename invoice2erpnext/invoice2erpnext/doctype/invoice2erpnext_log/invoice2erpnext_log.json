@@ -8,9 +8,9 @@
   "status",
   "file",
   "cost",
-  "message",
   "column_break_ftkp",
   "created_docs",
+  "message",
   "response"
  ],
  "fields": [
@@ -20,7 +20,8 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Pending\nError\nRetrieved\nSuccess"
+   "options": "Pending\nError\nRetrieved\nSuccess",
+   "read_only": 1
   },
   {
    "fieldname": "cost",
@@ -42,12 +43,15 @@
   {
    "fieldname": "created_docs",
    "fieldtype": "Data",
-   "label": "Created Documents",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Created Document",
    "read_only": 1
   },
   {
    "fieldname": "response",
    "fieldtype": "Code",
+   "hidden": 1,
    "label": "Response",
    "options": "JSON",
    "read_only": 1
@@ -63,7 +67,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-31 16:02:34.494644",
+ "modified": "2025-04-01 09:13:06.986016",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Log",
