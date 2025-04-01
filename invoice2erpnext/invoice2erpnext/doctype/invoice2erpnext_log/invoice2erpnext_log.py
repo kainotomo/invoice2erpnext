@@ -182,8 +182,8 @@ class Invoice2ErpnextLog(Document):
                     item_code = f"I2E-{desc_hash}"
                 
                 # Get item details with standardized precision
-                amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", None))
-                unit_price = round_amount(item_data.get("UnitPrice", {}).get("valueCurrency", {}).get("amount", None))
+                amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
+                unit_price = round_amount(item_data.get("UnitPrice", {}).get("valueCurrency", {}).get("amount", 0))
                 quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1  # Ensure quantity is never zero
                 
                 item_doc = {
@@ -263,6 +263,7 @@ class Invoice2ErpnextLog(Document):
             
             # 3. Create Purchase Invoice document
             invoice_date = extracted_doc.get("InvoiceDate", {}).get("valueDate", "")
+            invoice_date = validate_and_fix_date(invoice_date, bill_no)
             if invoice_date:
                 document_score += 20
                 
@@ -549,3 +550,62 @@ def create_purchase_invoice_from_file(file_doc_name):
     
     doc.save()
     return doc.name
+
+def validate_and_fix_date(date_string, reference_id=""):
+    """
+    Validates and fixes a date string to YYYY-MM-DD format.
+    If validation fails, returns today's date.
+    
+    Args:
+        date_string: The date string to validate/fix
+        reference_id: Optional reference ID for logging (e.g., invoice number)
+        
+    Returns:
+        string: YYYY-MM-DD formatted date
+    """
+    if not date_string:
+        frappe.log_error(f"Date missing in document {reference_id}, using today's date")
+        return frappe.utils.today()
+    
+    # Check if it's already in expected YYYY-MM-DD format
+    if len(date_string.split('-')) == 3:
+        try:
+            # Verify it's actually a valid date
+            from datetime import datetime
+            datetime.strptime(date_string, '%Y-%m-%d')
+            return date_string
+        except ValueError:
+            pass  # Fall through to the parsing logic below
+    
+    # Try to parse and fix common date formats
+    try:
+        from datetime import datetime
+        
+        # Try different date formats (day/month/year, month/day/year, etc.)
+        possible_formats = [
+            '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d',
+            '%d-%m-%Y', '%m-%d-%Y', '%Y-%m-%d',
+            '%d.%m.%Y', '%m.%d.%Y', '%Y.%m.%d',
+            '%d %b %Y', '%b %d %Y', '%d %B %Y', '%B %d %Y'
+        ]
+        
+        parsed_date = None
+        for date_format in possible_formats:
+            try:
+                parsed_date = datetime.strptime(date_string, date_format)
+                break
+            except ValueError:
+                continue
+        
+        if parsed_date:
+            # Convert to YYYY-MM-DD format
+            fixed_date = parsed_date.strftime('%Y-%m-%d')
+            frappe.log_error(f"Fixed invalid date format in document {reference_id}: {date_string} → {fixed_date}")
+            return fixed_date
+        else:
+            # If we couldn't parse the date, use today's date as fallback
+            frappe.log_error(f"Couldn't parse date in document {reference_id}: {date_string}, using today's date instead")
+            return frappe.utils.today()
+    except Exception as e:
+        frappe.log_error(f"Error processing date in document {reference_id}: {str(e)}, using today's date")
+        return frappe.utils.today()
