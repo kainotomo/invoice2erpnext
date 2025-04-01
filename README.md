@@ -1,106 +1,70 @@
 # Invoice2Erpnext
-Extract data from invoices and import them into your ERPNext site. This app can parse PDF and create purchase orders and invoices in ErpNext.
 
-It uses https://github.com/invoice-x/invoice2data where you can find more details and examples.
-### License
-MIT
-## Installation
-### Install "Invoice2Data" Library
-* Update apt with command: `sudo apt update`
+A seamless integration for automatically processing invoices and creating Purchase Invoices in ERPNext.
 
-* install pdftotext on Ubuntu, you can use the following command in the terminal:
-`sudo apt install poppler-utils`
-This will install the poppler-utils package which includes pdftotext
+## Overview
 
-* Install invoice2data using pip
-`bench pip install invoice2data`
+Invoice2Erpnext is an advanced tool that automatically processes invoices from various formats (PDF, images, etc.) and creates Purchase Invoices in ERPNext. The system extracts data from invoice documents, intelligently reconciles financial information, and creates all necessary related documents.
 
-* Install json to table using pip
-`bench pip install json2table`
+## Prerequisites
 
-#### Installation of input modules
-An tesseract wrapper is included in auto language mode. It will test your input files against the languages installed on your system. To use it tesseract and imagemagick needs to be installed. tesseract supports multiple OCR engine modes. By default the available engine installed on the system will be used.
+Before using Invoice2Erpnext, ensure:
 
-Languages: tesseract-ocr recognize more than 100 languages For Linux users, you can often find packages that provide language packs:
+1. You've installed the Invoice2Erpnext app in your ERPNext instance
+2. Your administrator has configured the "Invoice2Erpnext Settings" with:
+   - API credentials (api_key and api_secret)
+   - BASE_URL for the document extraction service
+   - Default VAT account
 
-**Display a list of all Tesseract language packs**
-`sudo apt-cache search tesseract-ocr`
+## How to Use
 
-**Debian/Ubuntu users**
-`sudo apt-get install tesseract-ocr-ell`  # Example: Install Greek language pack
+### Processing Invoices
 
-**Arch Linux users**
-`pacman -S tesseract-data-eng tesseract-data-deu` # Example: Install the English and German language packs
+To process invoices with Invoice2Erpnext:
 
-For more details check https://github.com/invoice-x/invoice2data#installation
+1. Navigate to the **Purchase Invoice** list view
+2. Click the "Upload" button in the list view
+3. Select the invoice files you want to process
+4. The system will:
+   - Process each file automatically
+   - Create Purchase Invoices in draft status
+   - Generate Logs with the result
 
-### Install "Invoice2Erpnext" app
-* `bench get-app --branch=master invoice2erpnext https://github.com/phalouvas/invoice2erpnext.git`
-* `bench --site yoursite migrate`
+Once processed, you can review and submit the created Purchase Invoices after verifying their accuracy.
 
-## How to use
-After installing access the app to the created workspace called Invoice2Erpnext. There are two doctypes.
-* **Invoice Template** - add/modify templates
-* **Invoice File** - upload and create Purchase Invoices
+## Understanding the Process
 
-Each purchase invoice is created with one item. See below images for a real example. The example is using this [Sample Invoice](documentation/sample_invoice.pdf).
+The system performs these steps automatically:
 
-![Alt text](documentation/img_1.jpeg?raw=true "Workspace")
-![Alt text](documentation/img_2.jpeg?raw=true "Invoice Template List")
+1. **Document Extraction**: Sends the invoice to an AI service that reads text and structures
+2. **Data Validation**: Checks for consistency in extracted financial data
+3. **Intelligent Reconciliation**: If discrepancies exist, determines which values are most reliable based on confidence scores
+4. **Document Creation**:
+   - Creates Supplier if not already in system
+   - Creates Items if not already in system
+   - Creates Purchase Invoice with line items, taxes, and totals
+5. **File Attachment**: Links the original invoice file to the created Purchase Invoice
 
-In the template form are prepared the necessary fileds where to write the regex expresions and generate the yml. You can modify the yml file to include more data as desired. We can prepare the template files for your invoice. Contact us at info@kainotomo.com to get a quote.
+## Monitoring Results
 
-![Alt text](documentation/img_3.jpeg?raw=true "Invoice Template Form")
-![Alt text](documentation/img_4.jpeg?raw=true "Invoice File List")
-![Alt text](documentation/img_5.jpeg?raw=true "Invoice File Form")
-![Alt text](documentation/img_6.jpeg?raw=true "Purchase Order")
-![Alt text](documentation/img_7.jpeg?raw=true "Purchase Invoice")
+After processing, use the Invoice2Erpnext Log to monitor status:
 
-## Template system
-Read Invoice2Data template system documentation on how to use it. https://github.com/invoice-x/invoice2data#template-system 
+1. Navigate to **Invoice2Erpnext Log** in your ERPNext menu
+2. View processing status for each uploaded file:
+   - Status: Shows "Success" if completed successfully
+   - Created Docs: Lists all documents created from the invoice
+   - Message: Contains detailed processing information
 
-We can also prepare the template for you. Contact us at info@kainotomo.com to get a quote.
+The original file will be automatically attached to the new Purchase Invoice.
 
-The supported fields are the following.
+## Troubleshooting
 
-### Required fields
-* issuer - the supplier. Must already exist in the system
-* date - the posting date invoice was issued
-* invoice_number - unique number assigned to invoice by an issuer
-* item_code - The item code in erpnext
-* amount - The item rate
-### Additional fields
-Note that if erpnext have default values, then None will default to that value.
-**General fields of the invoice**
-* currency - Defaults to None
-* conversion_rate - Defaults to 1
-* is_return - Defaults to None
-* return_against - Defaults to None
-* is_subcontracted - Defaults to 0
-* supplier_warehouse - Defaults to None
-* cost_center - Defaults to None
-* due_date - Defaults to posting_date
-* bill_date - Defaults to posting_Date
-**Item specific fields**
-* warehouse - Defaults to None
-* qty - Defaults to 1
-* received_qty - Defaults to 0
-* rejected_qty - Defaults to 0
-* price_list_rate - Defaults to None
-* expense_account - Defaults to None
-* discount_account - Defaults to None
-* discount_amount - Defaults to None
-* conversion_factor - Defaults to 1
-* serial_no - Defaults to None
-* stock_uom - Defaults to None
-* cost_center - Defaults to None
-* project - Defaults to None
-* rejected_warehouse - Defaults to None
-* rejected_serial_no - Defaults to None
-* asset_location - Defaults to None
-* allow_zero_valuation_rate - Defaults to 0
-**Tax**
-* tax_account_head - Tax account (required)
-* tax_cost_center - Defaults to None
-* tax_description - Defaults to "TAX"
-* tax_amount - Defaults to 0
+If processing fails:
+- Check the Invoice2Erpnext Log status and message fields
+- Common issues include:
+  - Poor quality scans of invoices
+  - Missing critical data (vendor name, invoice date, etc.)
+  - Inconsistent totals that can't be reconciled
+  - Connection issues with the extraction service
+
+For best results, ensure your invoice files are clear, properly scanned, and contain all critical information.
