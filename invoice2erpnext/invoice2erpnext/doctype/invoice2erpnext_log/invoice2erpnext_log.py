@@ -411,7 +411,21 @@ class Invoice2ErpnextLog(Document):
                             # Recalculate rate based on the adjusted amount
                             largest_item = invoice_items[largest_item_idx]
                             if largest_item.get("qty", 0):
-                                largest_item["rate"] = largest_item["amount"] / largest_item["qty"]
+                                largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"])
+
+                                # Recalculate rate based on the adjusted amount
+                                largest_item = invoice_items[largest_item_idx]
+                                if largest_item.get("qty", 0):
+                                    largest_item["rate"] = round_amount(largest_item["amount"] / largest_item["qty"])
+                                
+                        # Final verification to ensure total exactly matches subtotal
+                        final_verify_total = round_amount(sum(item.get("qty", 0) * item.get("rate", 0) for item in invoice_items))
+                        if abs(final_verify_total - subtotal) > 0:
+                            # If still not matching, adjust rate one more time
+                            final_diff = subtotal - final_verify_total
+                            largest_item["rate"] = round_amount((largest_item["rate"] * largest_item.get("qty", 1)) + final_diff )
+                            largest_item["qty"] = 1
+                            largest_item["amount"] = largest_item["rate"]
             
             # Make sure to update the purchase_invoice with the final invoice_items list
             purchase_invoice["items"] = invoice_items
