@@ -1,6 +1,6 @@
-# Invoice2Erpnext
+# Invoice2Erpnext User Guide
 
-A seamless integration for automatically processing invoices and creating Purchase Invoices in ERPNext.
+A seamless integration for automatically processing scanned invoices and creating Purchase Invoices in ERPNext.
 
 ## Overview
 
@@ -12,8 +12,9 @@ Before using Invoice2Erpnext, ensure:
 
 1. You've installed the Invoice2Erpnext app in your ERPNext instance
 2. Your administrator has configured the "Invoice2Erpnext Settings" with:
-   - API credentials (api_key and api_secret)
+   - API credentials (api_key and api_secret) obtained from [https://kainotomo.com/api_keys](https://kainotomo.com/api_keys)
    - Default VAT account
+   - Make sure you have credits obtained from [https://kainotomo.com/invoice2erpnext/shop](https://kainotomo.com/invoice2erpnext/shop)
 
 ### Installation
 
@@ -26,7 +27,7 @@ To install Invoice2Erpnext:
 
 2. Get the app:
    ```
-   bench get-app invoice2erpnext https://github.com/organization/invoice2erpnext
+   bench get-app invoice2erpnext https://github.com/kainotomo/invoice2erpnext
    ```
 
 3. Install the app on your site:
@@ -39,11 +40,6 @@ To install Invoice2Erpnext:
    bench --site your-site.com migrate
    ```
 
-5. Restart your server:
-   ```
-   bench restart
-   ```
-
 ### Configuration
 
 To configure Invoice2Erpnext:
@@ -51,7 +47,7 @@ To configure Invoice2Erpnext:
 1. Log in to your ERPNext site with Administrator privileges
 2. Navigate to **Invoice2Erpnext Settings** in the menu
 3. Configure the following required settings:
-   - **API Credentials**: Enter your api_key and api_secret obtained from the invoice processing service
+   - **API Credentials**: Enter your api_key and api_secret obtained from [https://kainotomo.com/api_keys](https://kainotomo.com/api_keys)
    - **Default VAT Account**: Select the account to be used for tax calculations
 
 4. Save the settings
@@ -75,15 +71,16 @@ To process invoices with Invoice2Erpnext:
    - Generate Logs with the result
 
 Once processed, you can review and submit the created Purchase Invoices after verifying their accuracy.
-![Alt text](documentation/prc-3.jpeg?raw=true "Purchase Invoice list view")
+![Alt text](documentation/prc-3.jpeg "Purchase Invoice list view")
 
 ## Understanding the Process
 
 The system performs these steps automatically:
 
-1. **Document Extraction**: Sends the invoice to an AI service that reads text and structures
+1. **Document Extraction**: Sends the invoice to KAINOTOMO server that reads text and structures
 2. **Data Validation**: Checks for consistency in extracted financial data
 3. **Intelligent Reconciliation**: If discrepancies exist, determines which values are most reliable based on confidence scores
+4. **Return Result**: Return extracted data to your server and delete the file from KAINOTOMO server.
 4. **Document Creation**:
    - Creates Supplier if not already in system
    - Creates Items if not already in system
@@ -110,6 +107,6 @@ If processing fails:
   - Poor quality scans of invoices
   - Missing critical data (vendor name, invoice date, etc.)
   - Inconsistent totals that can't be reconciled
-  - Connection issues with the extraction service
+  - Connection issues with KAINOTOMO extraction service
 
 For best results, ensure your invoice files are clear, properly scanned, and contain all critical information.
