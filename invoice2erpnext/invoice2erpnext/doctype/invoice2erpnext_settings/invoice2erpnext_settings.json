@@ -25,6 +25,7 @@
    "label": "API Secret"
   },
   {
+   "description": "Get key and secret from <a href=\"https://kainotomo.com/api-keys\" target=\"_blank\">HERE</a>",
    "fieldname": "api_credentials_section",
    "fieldtype": "Section Break",
    "label": "API Credentials"
@@ -56,7 +57,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-03-29 19:35:42.674819",
+ "modified": "2025-04-04 07:37:36.778696",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",

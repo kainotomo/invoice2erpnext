@@ -11,6 +11,7 @@ class Invoice2ErpnextSettings(Document):
     
     # Define as class variable - available to all instances and methods
     BASE_URL = "https://kainotomo.com"
+    BASE_URL = "http://development.localhost:8001"
     
     @frappe.whitelist()
     def get_credits(self):
