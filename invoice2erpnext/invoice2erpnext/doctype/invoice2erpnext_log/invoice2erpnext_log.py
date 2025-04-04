@@ -282,7 +282,7 @@ class Invoice2ErpnextLog(Document):
             
             purchase_invoice = {
                 "doctype": "Purchase Invoice",
-                "title": f"Invoice {bill_no}",
+                "title": vendor_name,
                 "supplier": vendor_name,
                 "bill_no": bill_no,
                 "bill_date": invoice_date,
