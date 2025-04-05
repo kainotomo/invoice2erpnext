@@ -136,10 +136,19 @@ class Invoice2ErpnextLog(Document):
             vendor_address = extracted_doc.get("VendorAddress", {}).get("valueAddress", {})
             vendor_tax_id = extracted_doc.get("VendorTaxId", {}).get("valueString", "")
 
+            # Get supplier group from settings
+            try:
+                settings = frappe.get_doc("Invoice2Erpnext Settings")
+                supplier_group = settings.supplier_group or "All Supplier Groups"
+            except Exception as e:
+                frappe.log_error(f"Error fetching supplier_group from settings: {str(e)}")
+                supplier_group = "All Supplier Groups"  # Fallback to default
+                settings = None  # Ensure settings is defined even on error
+
             supplier_doc = {
                 "doctype": "Supplier",
                 "supplier_name": vendor_name,
-                "supplier_group": "All Supplier Groups",  # Default value
+                "supplier_group": supplier_group,  # Use setting instead of hardcoded value
                 "supplier_type": "Company",  # Default value
                 "country": vendor_address.get("countryRegion", "Cyprus"),
                 "address_line1": vendor_address.get("streetAddress", ""),
@@ -153,6 +162,17 @@ class Invoice2ErpnextLog(Document):
             items = extracted_doc.get("Items", {}).get("valueArray", [])
             if items:
                 document_score += 20
+            
+            # Get item group from settings - reuse existing settings object
+            try:
+                item_group = settings.item_group if settings else None
+                if item_group is None:
+                    settings = frappe.get_doc("Invoice2Erpnext Settings")
+                    item_group = settings.item_group
+                item_group = item_group or "All Item Groups"
+            except Exception as e:
+                frappe.log_error(f"Error fetching item_group from settings: {str(e)}")
+                item_group = "All Item Groups"  # Fallback to default
                 
             invoice_items = []
             
@@ -191,7 +211,7 @@ class Invoice2ErpnextLog(Document):
                     "item_code": item_code,
                     "item_name": description.split("\n")[0][:140] if description else f"Item {idx+1}",
                     "description": description,
-                    "item_group": "All Item Groups",
+                    "item_group": item_group,  # Use setting instead of hardcoded value
                     "stock_uom": "Nos",
                     "is_stock_item": 0,  # Assuming service item
                     "is_purchase_item": 1
