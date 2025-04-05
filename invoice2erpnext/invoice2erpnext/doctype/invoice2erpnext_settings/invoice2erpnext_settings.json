@@ -10,8 +10,14 @@
   "enabled",
   "column_break_trjd",
   "api_secret",
+  "defaults_section_section",
+  "vat_account",
   "section_break_kuys",
-  "vat_account"
+  "supplier_group",
+  "column_break_kfsd",
+  "item_group",
+  "one_item_invoice",
+  "item"
  ],
  "fields": [
   {
@@ -46,18 +52,59 @@
    "fieldtype": "Section Break"
   },
   {
-   "description": "The account used for tax entries in ERPNext (e.g., 'VAT - ABC')",
+   "description": "The designated account for recording tax entries, such as 'VAT - ABC'.",
    "fieldname": "vat_account",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
    "label": "VAT Account Head",
+   "options": "Account",
    "reqd": 1
+  },
+  {
+   "description": "The designated group in which the supplier will be categorized upon creation.",
+   "fieldname": "supplier_group",
+   "fieldtype": "Link",
+   "label": "Supplier Group",
+   "options": "Supplier Group",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.one_item_invoice==1",
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "mandatory_depends_on": "eval:doc.one_item_invoice==1",
+   "options": "Item"
+  },
+  {
+   "fieldname": "column_break_kfsd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The designated group in which the item will be classified within ERPNext.",
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Group",
+   "options": "Item Group",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Choose whether the created invoices will have only one item.",
+   "fieldname": "one_item_invoice",
+   "fieldtype": "Check",
+   "label": "One Item Invoice"
+  },
+  {
+   "fieldname": "defaults_section_section",
+   "fieldtype": "Section Break",
+   "label": "Defaults"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-04-04 07:37:36.778696",
+ "modified": "2025-04-05 16:43:36.071064",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",
