@@ -140,10 +140,15 @@ class Invoice2ErpnextLog(Document):
             try:
                 settings = frappe.get_doc("Invoice2Erpnext Settings")
                 supplier_group = settings.supplier_group or "All Supplier Groups"
+                # Also get one_item_invoice setting and item
+                one_item_invoice = settings.one_item_invoice or 0
+                settings_item = settings.item if one_item_invoice else None
             except Exception as e:
-                frappe.log_error(f"Error fetching supplier_group from settings: {str(e)}")
+                frappe.log_error(f"Error fetching settings: {str(e)}")
                 supplier_group = "All Supplier Groups"  # Fallback to default
                 settings = None  # Ensure settings is defined even on error
+                one_item_invoice = 0
+                settings_item = None
 
             supplier_doc = {
                 "doctype": "Supplier",
@@ -169,6 +174,10 @@ class Invoice2ErpnextLog(Document):
                 if item_group is None:
                     settings = frappe.get_doc("Invoice2Erpnext Settings")
                     item_group = settings.item_group
+                    # Also get one_item_invoice setting if needed
+                    if one_item_invoice is None:
+                        one_item_invoice = settings.one_item_invoice or 0
+                        settings_item = settings.item if one_item_invoice else None
                 item_group = item_group or "All Item Groups"
             except Exception as e:
                 frappe.log_error(f"Error fetching item_group from settings: {str(e)}")
@@ -187,99 +196,133 @@ class Invoice2ErpnextLog(Document):
             if item_currencies and any(curr != invoice_currency for curr in item_currencies):
                 frappe.log_error(f"Currency mismatch: Invoice is {invoice_currency} but items have {item_currencies} in invoice {bill_no}")
             
-            for idx, item in enumerate(items):
-                item_data = item.get("valueObject", {})
-                description = item_data.get("Description", {}).get("valueString", "")
+            # Process items based on the one_item_invoice setting
+            if one_item_invoice and settings_item and frappe.db.exists("Item", settings_item):
+                # Calculate the total amount for all items
+                total_amount = 0
+                total_qty = 0
+                combined_description = []
                 
-                # Get product code if available, otherwise generate one
-                product_code = item_data.get("ProductCode", {}).get("valueString", "")
-                if product_code:
-                    item_code = f"{product_code}"
-                else:
-                    # Generate item code based on description with hash for uniqueness
-                    import hashlib
-                    desc_hash = hashlib.md5(description.encode()).hexdigest()[:8] if description else ""
-                    item_code = f"I2E-{desc_hash}"
-                
-                # Get item details with standardized precision
-                amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
-                unit_price = round_amount(item_data.get("UnitPrice", {}).get("valueCurrency", {}).get("amount", 0))
-                quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1  # Ensure quantity is never zero
-                
-                item_doc = {
-                    "doctype": "Item",
-                    "item_code": item_code,
-                    "item_name": description.split("\n")[0][:140] if description else f"Item {idx+1}",
-                    "description": description,
-                    "item_group": item_group,  # Use setting instead of hardcoded value
-                    "stock_uom": "Nos",
-                    "is_stock_item": 0,  # Assuming service item
-                    "is_purchase_item": 1
-                }
-                result["erpnext_docs"].append(item_doc)
-                
-                # Handle negative amounts (credits/refunds)
-                is_credit = amount < 0
-                
-                # Calculate discount or markup if any
-                if unit_price and quantity and amount:
-                    calculated_amount = round_amount(unit_price * quantity)
+                # Process each item to calculate totals but don't create separate items
+                for idx, item in enumerate(items):
+                    item_data = item.get("valueObject", {})
+                    description = item_data.get("Description", {}).get("valueString", "")
+                    if description:
+                        combined_description.append(f"{idx+1}. {description}")
                     
-                    # Handle both discount and markup scenarios
-                    if abs(calculated_amount - amount) > ROUNDING_TOLERANCE:  # Use constant for tolerance
-                        # Use the final amount to determine the effective rate
+                    amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
+                    quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1
+                    
+                    total_amount += amount
+                    total_qty += quantity
+                
+                # Create a single invoice item with the consolidated amount
+                invoice_item = {
+                    "item_code": settings_item,
+                    "qty": max(1, total_qty),  # Ensure minimum quantity of 1
+                    "rate": total_amount / max(1, total_qty),  # Avoid division by zero
+                    "amount": total_amount,
+                    "description": "\n".join(combined_description) if combined_description else f"Combined invoice items for {bill_no}",
+                    "uom": "Nos"
+                }
+                invoice_items.append(invoice_item)
+                
+                # No need to create new items, as we're using the predefined one
+            else:
+                # Original logic for creating multiple items
+                for idx, item in enumerate(items):
+                    item_data = item.get("valueObject", {})
+                    description = item_data.get("Description", {}).get("valueString", "")
+                    
+                    # Get product code if available, otherwise generate one
+                    product_code = item_data.get("ProductCode", {}).get("valueString", "")
+                    if product_code:
+                        item_code = f"{product_code}"
+                    else:
+                        # Generate item code based on description with hash for uniqueness
+                        import hashlib
+                        desc_hash = hashlib.md5(description.encode()).hexdigest()[:8] if description else ""
+                        item_code = f"I2E-{desc_hash}"
+                    
+                    # Get item details with standardized precision
+                    amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
+                    unit_price = round_amount(item_data.get("UnitPrice", {}).get("valueCurrency", {}).get("amount", 0))
+                    quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1  # Ensure quantity is never zero
+                    
+                    item_doc = {
+                        "doctype": "Item",
+                        "item_code": item_code,
+                        "item_name": description.split("\n")[0][:140] if description else f"Item {idx+1}",
+                        "description": description,
+                        "item_group": item_group,
+                        "stock_uom": "Nos",
+                        "is_stock_item": 0,  # Assuming service item
+                        "is_purchase_item": 1
+                    }
+                    result["erpnext_docs"].append(item_doc)
+                    
+                    # Handle negative amounts (credits/refunds)
+                    is_credit = amount < 0
+                    
+                    # Calculate discount or markup if any
+                    if unit_price and quantity and amount:
+                        calculated_amount = round_amount(unit_price * quantity)
+                        
+                        # Handle both discount and markup scenarios
+                        if abs(calculated_amount - amount) > ROUNDING_TOLERANCE:  # Use constant for tolerance
+                            # Use the final amount to determine the effective rate
+                            invoice_item = {
+                                "item_code": item_code,
+                                "qty": abs(quantity),  # Always positive quantity
+                                "rate": amount / quantity if quantity else amount,  # Add division by zero protection
+                                "amount": amount,
+                                "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                                "uom": "Nos"
+                            }
+                        else:
+                            # No discount/markup - use unit price as is
+                            invoice_item = {
+                                "item_code": item_code,
+                                "qty": abs(quantity),  # Always positive quantity
+                                "rate": unit_price * (-1 if is_credit else 1),
+                                "amount": amount,
+                                "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                                "uom": "Nos"
+                            }
+                    elif unit_price and quantity:
+                        # We have unit price and quantity but no amount
+                        calculated_amount = round_amount(unit_price * quantity)
                         invoice_item = {
                             "item_code": item_code,
-                            "qty": abs(quantity),  # Always positive quantity
+                            "qty": abs(quantity),
+                            "rate": unit_price * (-1 if is_credit else 1),
+                            "amount": calculated_amount * (-1 if is_credit else 1),
+                            "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                            "uom": "Nos"
+                        }
+                    elif amount:
+                        # We only have the amount
+                        invoice_item = {
+                            "item_code": item_code,
+                            "qty": abs(quantity),
                             "rate": amount / quantity if quantity else amount,  # Add division by zero protection
                             "amount": amount,
                             "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
                             "uom": "Nos"
                         }
                     else:
-                        # No discount/markup - use unit price as is
+                        # Fallback if no pricing details at all
                         invoice_item = {
                             "item_code": item_code,
-                            "qty": abs(quantity),  # Always positive quantity
-                            "rate": unit_price * (-1 if is_credit else 1),
-                            "amount": amount,
-                            "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
+                            "qty": abs(quantity),
+                            "rate": 0,
+                            "amount": 0,
+                            "description": description,
                             "uom": "Nos"
                         }
-                elif unit_price and quantity:
-                    # We have unit price and quantity but no amount
-                    calculated_amount = round_amount(unit_price * quantity)
-                    invoice_item = {
-                        "item_code": item_code,
-                        "qty": abs(quantity),
-                        "rate": unit_price * (-1 if is_credit else 1),
-                        "amount": calculated_amount * (-1 if is_credit else 1),
-                        "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
-                        "uom": "Nos"
-                    }
-                elif amount:
-                    # We only have the amount
-                    invoice_item = {
-                        "item_code": item_code,
-                        "qty": abs(quantity),
-                        "rate": amount / quantity if quantity else amount,  # Add division by zero protection
-                        "amount": amount,
-                        "description": f"CREDIT: {description}" if is_credit and not description.startswith("CREDIT:") else description,
-                        "uom": "Nos"
-                    }
-                else:
-                    # Fallback if no pricing details at all
-                    invoice_item = {
-                        "item_code": item_code,
-                        "qty": abs(quantity),
-                        "rate": 0,
-                        "amount": 0,
-                        "description": description,
-                        "uom": "Nos"
-                    }
-                    frappe.log_error(f"No pricing information for item {item_code} in invoice {bill_no}")
+                        frappe.log_error(f"No pricing information for item {item_code} in invoice {bill_no}")
     
-                invoice_items.append(invoice_item)
+                    invoice_items.append(invoice_item)
             
             # 3. Create Purchase Invoice document
             invoice_date = extracted_doc.get("InvoiceDate", {}).get("valueDate", "")
