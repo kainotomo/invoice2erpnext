@@ -11,6 +11,10 @@
   "column_break_ftkp",
   "created_docs",
   "message",
+  "section_break_manual",
+  "manual_mode",
+  "manual_supplier",
+  "manual_item",
   "response"
  ],
  "fields": [
@@ -63,6 +67,32 @@
    "options": "File",
    "read_only": 1,
    "reqd": 1
+  },
+  {
+   "fieldname": "section_break_manual",
+   "fieldtype": "Section Break",
+   "label": "Manual Processing"
+  },
+  {
+   "default": "0",
+   "fieldname": "manual_mode",
+   "fieldtype": "Check",
+   "label": "Manual Mode",
+   "read_only": 1
+  },
+  {
+   "fieldname": "manual_supplier",
+   "fieldtype": "Link",
+   "label": "Manual Supplier",
+   "options": "Supplier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "manual_item",
+   "fieldtype": "Link",
+   "label": "Manual Item",
+   "options": "Item",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
