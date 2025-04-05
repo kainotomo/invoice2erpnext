@@ -200,7 +200,6 @@ class Invoice2ErpnextLog(Document):
             if one_item_invoice and settings_item and frappe.db.exists("Item", settings_item):
                 # Calculate the total amount for all items
                 total_amount = 0
-                total_qty = 0
                 combined_description = []
                 
                 # Process each item to calculate totals but don't create separate items
@@ -211,16 +210,13 @@ class Invoice2ErpnextLog(Document):
                         combined_description.append(f"{idx+1}. {description}")
                     
                     amount = round_amount(item_data.get("Amount", {}).get("valueCurrency", {}).get("amount", 0))
-                    quantity = item_data.get("Quantity", {}).get("valueNumber", 1) or 1
-                    
                     total_amount += amount
-                    total_qty += quantity
                 
-                # Create a single invoice item with the consolidated amount
+                # Create a single invoice item with quantity=1 and rate=total_amount
                 invoice_item = {
                     "item_code": settings_item,
-                    "qty": max(1, total_qty),  # Ensure minimum quantity of 1
-                    "rate": total_amount / max(1, total_qty),  # Avoid division by zero
+                    "qty": 1,  # Always use quantity of 1 for one_item_invoice
+                    "rate": total_amount,  # Rate equals total amount since qty=1
                     "amount": total_amount,
                     "description": "\n".join(combined_description) if combined_description else f"Combined invoice items for {bill_no}",
                     "uom": "Nos"
