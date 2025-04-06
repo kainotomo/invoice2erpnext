@@ -81,6 +81,7 @@ To process invoices with Invoice2Erpnext:
    - Generate Logs with the result
 
 Once processed, you can review and submit the created Purchase Invoices after verifying their accuracy.
+
 ![Alt text](documentation/prc-3.jpeg "Purchase Invoice list view")
 
 ## Understanding the Process
