@@ -67,8 +67,10 @@ These configurations are essential for the app to function properly. Without val
 To process invoices with Invoice2Erpnext:
 
 1. Navigate to the **Purchase Invoice** list view
-![Alt text](prc-1.jpeg?raw=true "Purchase Invoice list view")
-2. Click the "Upload" button in the list view
+![Alt text](prc-4.png?raw=true "Purchase Invoice list view")
+2. Click the dropdown menu and select one of the following upload options:
+   - **Upload (Auto)**: Fully automatic processing where the system will identify the supplier, items, and all financial data without user input. Best for clear, well-structured invoices from established suppliers.
+   - **Upload (Manual)**: Requires you to select a specific supplier and item while the system extracts only the financial data. Ideal for unusual invoices, low-quality scans, or when you want consistent item categorization.
 3. Select the invoice files you want to process
 ![Alt text](prc-2.jpeg?raw=true "Upload")
 4. The system will:
