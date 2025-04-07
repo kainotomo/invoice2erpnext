@@ -5,6 +5,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "credits_section",
+  "available_credits",
   "api_credentials_section",
   "api_key",
   "enabled",
@@ -99,12 +101,22 @@
    "fieldname": "defaults_section_section",
    "fieldtype": "Section Break",
    "label": "Defaults"
+  },
+  {
+   "fieldname": "credits_section",
+   "fieldtype": "Section Break",
+   "label": "Credits"
+  },
+  {
+   "fieldname": "available_credits",
+   "fieldtype": "HTML",
+   "label": "Available Credits"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-04-07 09:34:18.968788",
+ "modified": "2025-04-07 10:03:29.441991",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",

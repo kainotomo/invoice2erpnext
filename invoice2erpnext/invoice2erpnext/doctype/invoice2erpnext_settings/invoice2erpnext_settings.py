@@ -98,3 +98,52 @@ class Invoice2ErpnextSettings(Document):
         self.save()
 
         return result
+
+
+# Add a global function that doesn't require document permissions
+@frappe.whitelist(allow_guest=False)
+def get_available_credits():
+    """Get available credits - accessible to all authenticated users"""
+    try:
+        # Check if settings exists - don't need document permissions for this check
+        if not frappe.db.exists("Invoice2Erpnext Settings", "Invoice2Erpnext Settings"):
+            return {
+                "value": 0,
+                "fieldtype": "Currency",
+            }
+        
+        # Create a new instance without checking permissions
+        settings = frappe.new_doc("Invoice2Erpnext Settings")
+        settings.flags.ignore_permissions = True
+        
+        # Load the document values from DB directly
+        settings_dict = frappe.db.get_singles_dict("Invoice2Erpnext Settings")
+        for key, value in settings_dict.items():
+            if key != "doctype":
+                settings.set(key, value)
+        
+        # Get credentials explicitly from DB
+        for field in ["api_key", "api_secret"]:
+            value = frappe.db.get_value("__Auth", {"doctype": "Invoice2Erpnext Settings", "fieldname": field}, "password")
+            if value:
+                settings.set(field, value)
+        
+        # Get credits using the instance method
+        result = settings.get_credits()
+        
+        # Extract credits from result if successful
+        credits = 0
+        if result.get("success") and "credits" in result:
+            credits = result["credits"]
+        
+        # Return formatted response for number card
+        return {
+            "value": credits,
+            "fieldtype": "Currency",
+        }
+    except Exception as e:
+        frappe.log_error(f"Error fetching credits for all users: {str(e)}", "Invoice2Erpnext Credits")
+        return {
+            "value": 0,
+            "fieldtype": "Currency",
+        }
