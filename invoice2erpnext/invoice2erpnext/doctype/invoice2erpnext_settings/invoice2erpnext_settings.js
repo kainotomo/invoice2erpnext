@@ -33,15 +33,19 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
             method: "invoice2erpnext.invoice2erpnext.doctype.invoice2erpnext_settings.invoice2erpnext_settings.get_available_credits",
             callback: function(r) {
                 if (r.message && r.message.value !== undefined) {
-                    // Format credits nicely
+                    // Get credits value
                     let credits = r.message.value;
-                    let formattedCredits = frappe.format(credits, {fieldtype: 'Currency'});
                     
-                    // Create HTML using Frappe's standard classes
+                    // Format manually without using frappe.format for currency
+                    // This avoids the right-alignment issue
+                    let currencySymbol = frappe.boot.sysdefaults.currency_symbol || '€';
+                    let formattedValue = parseFloat(credits).toFixed(2).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                    let formattedCredits = currencySymbol + ' ' + formattedValue;
+                    
+                    // Create HTML using Frappe's standard classes with explicit left alignment
                     let html = `
                         <div class="frappe-card p-3">
-                            <div class="section-head text-muted">AVAILABLE CREDITS</div>
-                            <div class="value text-xl bold text-primary">${formattedCredits}</div>
+                            <div class="value text-xl bold text-primary text-center" style="text-align: left !important;">${formattedCredits}</div>
                             <div class="mt-3">
                                 <a href="https://kainotomo.com/invoice2erpnext/shop" target="_blank" 
                                    class="btn btn-primary btn-sm">Purchase Credits</a>
@@ -53,10 +57,13 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
                     $(frm.fields_dict.available_credits.wrapper).html(html);
                 } else {
                     // Handle error or zero credits case
+                    let currencySymbol = frappe.boot.sysdefaults.currency_symbol || '€';
+                    let formattedCredits = currencySymbol + ' 0.00';
+                    
                     $(frm.fields_dict.available_credits.wrapper).html(`
                         <div class="frappe-card p-3">
                             <div class="section-head text-muted">AVAILABLE CREDITS</div>
-                            <div class="value text-xl bold text-muted">0.00</div>
+                            <div class="value text-xl bold text-muted text-left" style="text-align: left !important;">${formattedCredits}</div>
                             <div class="mt-3">
                                 <a href="https://kainotomo.com/invoice2erpnext/shop" target="_blank" 
                                    class="btn btn-primary btn-sm">Purchase Credits</a>
