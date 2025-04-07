@@ -37,18 +37,17 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
                     let credits = r.message.value;
                     
                     // Format manually without using frappe.format for currency
-                    // This avoids the right-alignment issue
                     let currencySymbol = frappe.boot.sysdefaults.currency_symbol || '€';
                     let formattedValue = parseFloat(credits).toFixed(2).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                     let formattedCredits = currencySymbol + ' ' + formattedValue;
                     
-                    // Create HTML using Frappe's standard classes with explicit left alignment
+                    // Create a clean, simple HTML structure
                     let html = `
-                        <div class="frappe-card p-3">
-                            <div class="value text-xl bold text-primary text-center" style="text-align: left !important;">${formattedCredits}</div>
-                            <div class="mt-3">
+                        <div style="padding: 15px 0;">
+                            <div style="font-size: 24px; font-weight: 600; color: #2490EF; text-align: left;">${formattedCredits}</div>
+                            <div style="margin-top: 15px;">
                                 <a href="https://kainotomo.com/invoice2erpnext/shop" target="_blank" 
-                                   class="btn btn-primary btn-sm">Purchase Credits</a>
+                                   class="btn btn-primary btn-sm">Buy Credits</a>
                             </div>
                         </div>
                     `;
@@ -61,12 +60,11 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
                     let formattedCredits = currencySymbol + ' 0.00';
                     
                     $(frm.fields_dict.available_credits.wrapper).html(`
-                        <div class="frappe-card p-3">
-                            <div class="section-head text-muted">AVAILABLE CREDITS</div>
-                            <div class="value text-xl bold text-muted text-left" style="text-align: left !important;">${formattedCredits}</div>
-                            <div class="mt-3">
+                        <div style="padding: 15px 0;">
+                            <div style="font-size: 24px; font-weight: 600; color: #8D99A6; text-align: left;">${formattedCredits}</div>
+                            <div style="margin-top: 15px;">
                                 <a href="https://kainotomo.com/invoice2erpnext/shop" target="_blank" 
-                                   class="btn btn-primary btn-sm">Purchase Credits</a>
+                                   class="btn btn-primary btn-sm">Buy Credits</a>
                             </div>
                         </div>
                     `);
