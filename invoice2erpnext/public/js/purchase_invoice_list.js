@@ -1,14 +1,9 @@
 frappe.listview_settings['Purchase Invoice'] = {
     onload: function(listview) {
         // Check if integration is enabled before showing the upload button
-        frappe.call({
-            method: 'frappe.client.get_single_value',
-            args: {
-                doctype: 'Invoice2Erpnext Settings',
-                field: 'enabled'
-            },
-            callback: function(r) {
-                if (r.message === 1) {
+        frappe.xcall('invoice2erpnext.utils.check_settings_enabled')
+            .then(enabled => {
+                if (enabled) {
                     // Add the upload option under a dropdown menu
                     listview.page.add_menu_item(__('Upload (Auto)'), function() {
                         new frappe.ui.FileUploader({
@@ -29,8 +24,10 @@ frappe.listview_settings['Purchase Invoice'] = {
                         });
                     });
                 }
-            }
-        });
+            })
+            .catch(() => {
+                // Silently fail - don't show buttons if there's an error
+            });
     }
 };
 
