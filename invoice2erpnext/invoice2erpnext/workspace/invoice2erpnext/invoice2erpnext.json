@@ -1,6 +1,6 @@
 {
  "charts": [],
-"content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"3sCUU4rAB6\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Available Credits\",\"col\":4}},{\"id\":\"rAHLFl3j3O\",\"type\":\"paragraph\",\"data\":{\"text\":\"<a href=\\\"https://kainotomo.com/invoice2erpnext/shop\\\" class=\\\"btn btn-lg btn-primary\\\" target=\\\"_blank\\\">Purchase Credits</a>\",\"col\":12}},{\"id\":\"w1IJ8kd86B\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"jhv7lDXtTh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Logs\",\"col\":3}},{\"id\":\"1AWrWcS5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
+ "content": "[{\"id\":\"sxJmXGFSt6\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Invoice2Erpnext</span>\",\"col\":12}},{\"id\":\"jhv7lDXtTh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Logs\",\"col\":3}},{\"id\":\"1AWrWcS5a1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":3}}]",
  "creation": "2023-09-02 07:58:22.131565",
  "custom_blocks": [],
  "docstatus": 0,
@@ -12,16 +12,11 @@
  "is_hidden": 0,
  "label": "Invoice2Erpnext",
  "links": [],
- "modified": "2025-04-04 07:23:43.673812",
+ "modified": "2025-04-07 10:32:54.850098",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext",
- "number_cards": [
-  {
-   "label": "Available Credits",
-   "number_card_name": "Available Credits"
-  }
- ],
+ "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,

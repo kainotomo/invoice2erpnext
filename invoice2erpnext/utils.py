@@ -50,3 +50,16 @@ def format_currency_value(value):
         formatted_value = value_str
     
     return formatted_value
+
+@frappe.whitelist()
+def check_settings_enabled():
+    """Safely check if Invoice2Erpnext is enabled without permission errors"""
+    # First check if user has permission to read the settings
+    if not frappe.has_permission("Invoice2Erpnext Settings", "read"):
+        return 0
+    
+    try:
+        return frappe.db.get_single_value('Invoice2Erpnext Settings', 'enabled')
+    except:
+        # Return 0 (disabled) if any error occurs
+        return 0

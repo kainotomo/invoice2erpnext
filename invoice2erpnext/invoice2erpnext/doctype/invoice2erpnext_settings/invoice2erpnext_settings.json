@@ -5,6 +5,10 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "credits_section",
+  "column_break_ttnt",
+  "available_credits",
+  "column_break_hyuy",
   "api_credentials_section",
   "api_key",
   "enabled",
@@ -99,12 +103,30 @@
    "fieldname": "defaults_section_section",
    "fieldtype": "Section Break",
    "label": "Defaults"
+  },
+  {
+   "fieldname": "credits_section",
+   "fieldtype": "Section Break",
+   "label": "Credits"
+  },
+  {
+   "fieldname": "available_credits",
+   "fieldtype": "HTML",
+   "label": "Available Credits"
+  },
+  {
+   "fieldname": "column_break_ttnt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_hyuy",
+   "fieldtype": "Column Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-04-05 16:43:36.071064",
+ "modified": "2025-04-07 10:25:54.056689",
  "modified_by": "Administrator",
  "module": "Invoice2Erpnext",
  "name": "Invoice2Erpnext Settings",
@@ -119,6 +141,21 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Accounts User",
+   "share": 1
   }
  ],
  "sort_field": "modified",
