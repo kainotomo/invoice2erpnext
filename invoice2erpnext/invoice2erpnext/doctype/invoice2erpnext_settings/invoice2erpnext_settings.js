@@ -48,6 +48,10 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
                             <div style="margin-top: 15px;">
                                 <a href="https://kainotomo.com/invoice2erpnext/shop" target="_blank" 
                                    class="btn btn-primary btn-sm">Buy Credits</a>
+                                <a href="https://kainotomo.com/invoice2erpnext" target="_blank" 
+                                   class="btn btn-secondary btn-sm">About</a>
+                                <a href="https://kainotomo.com/invoice2erpnext/user-guide" target="_blank" 
+                                   class="btn btn-secondary btn-sm">User Guide</a>
                             </div>
                         </div>
                     `;
@@ -65,6 +69,10 @@ frappe.ui.form.on('Invoice2Erpnext Settings', {
                             <div style="margin-top: 15px;">
                                 <a href="https://kainotomo.com/invoice2erpnext/shop" target="_blank" 
                                    class="btn btn-primary btn-sm">Buy Credits</a>
+                                <a href="https://kainotomo.com/invoice2erpnext" target="_blank" 
+                                   class="btn btn-secondary btn-sm">About</a>
+                                <a href="https://kainotomo.com/invoice2erpnext/user-guide" target="_blank" 
+                                   class="btn btn-secondary btn-sm">User Guide</a>
                             </div>
                         </div>
                     `);
