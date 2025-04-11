@@ -112,23 +112,11 @@ def get_available_credits():
                 "fieldtype": "Currency",
             }
         
-        # Create a new instance without checking permissions
-        settings = frappe.new_doc("Invoice2Erpnext Settings")
+        # Get the document properly using get_doc which will handle encrypted fields correctly
+        settings = frappe.get_doc("Invoice2Erpnext Settings", "Invoice2Erpnext Settings")
         settings.flags.ignore_permissions = True
         
-        # Load the document values from DB directly
-        settings_dict = frappe.db.get_singles_dict("Invoice2Erpnext Settings")
-        for key, value in settings_dict.items():
-            if key != "doctype":
-                settings.set(key, value)
-        
-        # Get credentials explicitly from DB
-        for field in ["api_key", "api_secret"]:
-            value = frappe.db.get_value("__Auth", {"doctype": "Invoice2Erpnext Settings", "fieldname": field}, "password")
-            if value:
-                settings.set(field, value)
-        
-        # Get credits using the instance method
+        # Get credits using the instance method which handles credentials properly
         result = settings.get_credits()
         
         # Extract credits from result if successful
