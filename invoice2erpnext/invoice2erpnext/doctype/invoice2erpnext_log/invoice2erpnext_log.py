@@ -101,9 +101,15 @@ class Invoice2ErpnextLog(Document):
             return True
             
         except Exception as e:
-            frappe.log_error(f"Error in manual purchase invoice creation: {str(e)}")
+            try:
+                frappe.log_error(
+                    title="Manual PI Creation Error",
+                    message=f"Error in manual purchase invoice creation:\n{str(e)}\n{frappe.get_traceback()}"
+                )
+            except Exception:
+                pass
             self.status = "Error"
-            self.message = f"Manual mode error: {str(e)}"
+            self.message = f"Manual mode error: {str(e)[:500]}"
             self.save()
             return False
     
@@ -195,9 +201,15 @@ class Invoice2ErpnextLog(Document):
             return True
             
         except Exception as e:
-            frappe.log_error(f"Error in automatic purchase invoice creation: {str(e)}")
+            try:
+                frappe.log_error(
+                    title="Auto PI Creation Error",
+                    message=f"Error in automatic purchase invoice creation:\n{str(e)}\n{frappe.get_traceback()}"
+                )
+            except Exception:
+                pass
             self.status = "Error"
-            self.message = f"Auto mode error: {str(e)}"
+            self.message = f"Auto mode error: {str(e)[:500]}"
             self.save()
             return False
 
@@ -289,7 +301,13 @@ class Invoice2ErpnextLog(Document):
             return result
         
         except Exception as e:
-            frappe.log_error(f"Error transforming extracted document: {str(e)}")
+            try:
+                frappe.log_error(
+                    title="Extracted Doc Transform Error",
+                    message=f"Error transforming extracted document:\n{str(e)}\n{frappe.get_traceback()}"
+                )
+            except Exception:
+                pass
             return {
                 "success": False,
                 "error": str(e)
