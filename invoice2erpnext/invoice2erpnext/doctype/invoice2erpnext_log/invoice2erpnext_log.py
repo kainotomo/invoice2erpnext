@@ -256,7 +256,11 @@ class Invoice2ErpnextLog(Document):
             currency = date_currency.get('currency', 'EUR')
             
             # 4. Extract payment terms
-            payment_terms = extracted_doc.get("PaymentTerm", {}).get("valueString", "")
+            payment_terms = self._get_nested_value_aliases(
+                extracted_doc,
+                ["PaymentTerm", "PaymentTerms", "Terms"],
+                "valueString"
+            ) or ""
             
             # 5. Create Purchase Invoice structure
             purchase_invoice = {
@@ -314,7 +318,29 @@ class Invoice2ErpnextLog(Document):
             }
 
     # ======= Helper Methods for Both Auto and Manual Modes =======
-            
+
+    def _get_nested_value_aliases(self, doc, aliases, *keys):
+        """Try multiple field name aliases to get a nested value from the extracted document.
+        
+        Args:
+            doc: The extracted document dict
+            aliases: List of alternate field names for the top-level field
+            *keys: Nested keys to traverse (e.g. 'valueString', 'valueCurrency', 'amount')
+        """
+        for alias in aliases:
+            value = doc.get(alias)
+            if value is None:
+                continue
+            for key in keys:
+                if isinstance(value, dict):
+                    value = value.get(key)
+                else:
+                    value = None
+                    break
+            if value is not None and value != "":
+                return value
+        return None
+    
     def _extract_invoice_details(self) -> Dict[str, Any]:
         """Extract basic invoice details from API response for manual mode"""
         try:
@@ -326,24 +352,60 @@ class Invoice2ErpnextLog(Document):
                 
             extracted_doc = json.loads(message.get("extracted_doc"))
             
-            # Extract bill number
-            bill_no = extracted_doc.get("InvoiceId", {}).get("valueString", "")
+            # Extract bill number with field name aliases
+            bill_no = self._get_nested_value_aliases(
+                extracted_doc,
+                ["InvoiceId", "InvoiceNumber", "InvoiceNo"],
+                "valueString"
+            ) or ""
             
-            # Extract date
-            invoice_date_str = extracted_doc.get("InvoiceDate", {}).get("valueDate", "")
+            # Extract date with field name aliases
+            invoice_date_str = self._get_nested_value_aliases(
+                extracted_doc,
+                ["InvoiceDate", "Date", "InvoiceDateString"],
+                "valueDate"
+            ) or ""
             invoice_date = validate_and_fix_date(invoice_date_str, bill_no) if invoice_date_str else frappe.utils.today()
             
-            # Extract currency
-            currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
+            # Extract currency with field name aliases
+            currency = self._get_nested_value_aliases(
+                extracted_doc,
+                ["InvoiceTotal", "AmountDue", "Total", "TotalAmount"],
+                "valueCurrency", "currencyCode"
+            ) or "EUR"
             
-            # Extract amount fields
-            total_amount = self._round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
-            total_tax = self._round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
+            # Extract amount fields with field name aliases
+            total_amount = self._round_amount(
+                self._get_nested_value_aliases(
+                    extracted_doc,
+                    ["InvoiceTotal", "AmountDue", "Total", "TotalAmount"],
+                    "valueCurrency", "amount"
+                ) or 0
+            )
+            total_tax = self._round_amount(
+                self._get_nested_value_aliases(
+                    extracted_doc,
+                    ["TotalTax", "Tax", "TaxAmount"],
+                    "valueCurrency", "amount"
+                ) or 0
+            )
             
             # If no total amount found, try calculating from subtotal and tax
             if not total_amount:
-                subtotal = self._round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
-                total_discount = self._round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
+                subtotal = self._round_amount(
+                    self._get_nested_value_aliases(
+                        extracted_doc,
+                        ["SubTotal", "Subtotal", "SubTotalAmount"],
+                        "valueCurrency", "amount"
+                    ) or 0
+                )
+                total_discount = self._round_amount(
+                    self._get_nested_value_aliases(
+                        extracted_doc,
+                        ["TotalDiscount", "Discount", "DiscountAmount"],
+                        "valueCurrency", "amount"
+                    ) or 0
+                )
                 total_amount = subtotal + total_tax - total_discount
                 
             return {
@@ -359,19 +421,46 @@ class Invoice2ErpnextLog(Document):
             
     def _extract_bill_number(self, extracted_doc, document_score):
         """Extract bill number from document"""
-        bill_no = extracted_doc.get("InvoiceId", {}).get("valueString", "")
+        bill_no = self._get_nested_value_aliases(
+            extracted_doc,
+            ["InvoiceId", "InvoiceNumber", "InvoiceNo"],
+            "valueString"
+        ) or ""
         if bill_no:
             document_score += 20
         return bill_no, document_score
             
     def _extract_vendor_info(self, extracted_doc, document_score):
         """Extract vendor information from document"""
-        vendor_name = extracted_doc.get("VendorName", {}).get("valueString", "").replace("\n", " ").strip()
+        # Try VendorName first, then CustomerName/CustomerAddressRecipient as fallback
+        # In Azure AI, VendorName is the supplier/seller, CustomerName is the buyer
+        # But some invoice formats may only have CustomerAddressRecipient
+        vendor_name = (
+            self._get_nested_value_aliases(
+                extracted_doc,
+                ["VendorName", "CustomerName"],
+                "valueString"
+            ) or self._get_nested_value_aliases(
+                extracted_doc,
+                ["CustomerAddressRecipient", "CustomerName"],
+                "valueString"
+            ) or ""
+        ).replace("\n", " ").strip()
+        
         if vendor_name:
             document_score += 20
             
-        vendor_address = extracted_doc.get("VendorAddress", {}).get("valueAddress", {})
-        vendor_tax_id = extracted_doc.get("VendorTaxId", {}).get("valueString", "")
+        vendor_address = self._get_nested_value_aliases(
+            extracted_doc,
+            ["VendorAddress", "BillingAddress", "RemittanceAddress", "ShipToAddress"],
+            "valueAddress"
+        ) or {}
+        
+        vendor_tax_id = self._get_nested_value_aliases(
+            extracted_doc,
+            ["VendorTaxId", "TaxId", "VATNumber"],
+            "valueString"
+        ) or ""
         
         return {
             'vendor_name': vendor_name,
@@ -408,12 +497,20 @@ class Invoice2ErpnextLog(Document):
         
     def _extract_date_currency(self, extracted_doc, bill_no, document_score):
         """Extract date and currency information"""
-        invoice_date = extracted_doc.get("InvoiceDate", {}).get("valueDate", "")
+        invoice_date = self._get_nested_value_aliases(
+            extracted_doc,
+            ["InvoiceDate", "Date", "InvoiceDateString"],
+            "valueDate"
+        ) or ""
         invoice_date = validate_and_fix_date(invoice_date, bill_no)
         if invoice_date:
             document_score += 20
             
-        currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
+        currency = self._get_nested_value_aliases(
+            extracted_doc,
+            ["InvoiceTotal", "AmountDue", "Total", "TotalAmount"],
+            "valueCurrency", "currencyCode"
+        ) or "EUR"
         
         return {
             'invoice_date': invoice_date,
@@ -435,7 +532,11 @@ class Invoice2ErpnextLog(Document):
             settings_item = None
             item_group = "All Item Groups"
             
-        items = extracted_doc.get("Items", {}).get("valueArray", [])
+        items = self._get_nested_value_aliases(
+            extracted_doc,
+            ["Items", "LineItems", "InvoiceItems"],
+            "valueArray"
+        ) or []
         if items:
             document_score += 20
             
@@ -443,7 +544,11 @@ class Invoice2ErpnextLog(Document):
         item_docs = []
         
         # Check for currency consistency among items
-        invoice_currency = extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("currencyCode", "EUR")
+        invoice_currency = self._get_nested_value_aliases(
+            extracted_doc,
+            ["InvoiceTotal", "AmountDue", "Total", "TotalAmount"],
+            "valueCurrency", "currencyCode"
+        ) or "EUR"
         item_currencies = set()
         for item in items:
             item_currency = item.get("valueObject", {}).get("Amount", {}).get("valueCurrency", {}).get("currencyCode")
@@ -614,17 +719,57 @@ class Invoice2ErpnextLog(Document):
         ROUNDING_TOLERANCE = 0.05
         
         # Extract amount fields with confidence scores
-        subtotal = self._round_amount(extracted_doc.get("SubTotal", {}).get("valueCurrency", {}).get("amount", 0))
-        subtotal_confidence = extracted_doc.get("SubTotal", {}).get("confidence", 0)
+        subtotal = self._round_amount(
+            self._get_nested_value_aliases(
+                extracted_doc,
+                ["SubTotal", "Subtotal", "SubTotalAmount"],
+                "valueCurrency", "amount"
+            ) or 0
+        )
+        subtotal_confidence = self._get_nested_value_aliases(
+            extracted_doc,
+            ["SubTotal", "Subtotal", "SubTotalAmount"],
+            "confidence"
+        ) or 0
 
-        invoice_total = self._round_amount(extracted_doc.get("InvoiceTotal", {}).get("valueCurrency", {}).get("amount", 0))
-        invoice_total_confidence = extracted_doc.get("InvoiceTotal", {}).get("confidence", 0)
+        invoice_total = self._round_amount(
+            self._get_nested_value_aliases(
+                extracted_doc,
+                ["InvoiceTotal", "AmountDue", "Total", "TotalAmount"],
+                "valueCurrency", "amount"
+            ) or 0
+        )
+        invoice_total_confidence = self._get_nested_value_aliases(
+            extracted_doc,
+            ["InvoiceTotal", "AmountDue", "Total", "TotalAmount"],
+            "confidence"
+        ) or 0
 
-        total_tax = self._round_amount(extracted_doc.get("TotalTax", {}).get("valueCurrency", {}).get("amount", 0))
-        total_tax_confidence = extracted_doc.get("TotalTax", {}).get("confidence", 0)
+        total_tax = self._round_amount(
+            self._get_nested_value_aliases(
+                extracted_doc,
+                ["TotalTax", "Tax", "TaxAmount"],
+                "valueCurrency", "amount"
+            ) or 0
+        )
+        total_tax_confidence = self._get_nested_value_aliases(
+            extracted_doc,
+            ["TotalTax", "Tax", "TaxAmount"],
+            "confidence"
+        ) or 0
 
-        total_discount = self._round_amount(extracted_doc.get("TotalDiscount", {}).get("valueCurrency", {}).get("amount", 0))
-        total_discount_confidence = extracted_doc.get("TotalDiscount", {}).get("confidence", 0)
+        total_discount = self._round_amount(
+            self._get_nested_value_aliases(
+                extracted_doc,
+                ["TotalDiscount", "Discount", "DiscountAmount"],
+                "valueCurrency", "amount"
+            ) or 0
+        )
+        total_discount_confidence = self._get_nested_value_aliases(
+            extracted_doc,
+            ["TotalDiscount", "Discount", "DiscountAmount"],
+            "confidence"
+        ) or 0
 
         # Calculate expected invoice total and validate against extracted total
         expected_total = self._round_amount(subtotal + total_tax - total_discount)
